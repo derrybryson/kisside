@@ -1,0 +1,34 @@
+{
+  "info" : 
+  {
+    "name" : "kisside",
+
+    "summary" : "KISS Integrated Development Environment",
+    "description" : "This is an IDE for web development.",
+    
+    "homepage" : "http://kisside.com/",
+
+    "license" : "GPL2",
+    "authors" : 
+    [
+      {
+        "name" : "Derry Bryson",
+        "email" : "derrybryson@kisside.com"
+      }
+    ],
+
+    "version" : "master",
+    "qooxdoo-versions": ["5.0.1"]
+  },
+  
+  "provides" : 
+  {
+    "namespace"   : "kisside",
+    "encoding"    : "utf-8",
+    "class"       : "source/class",
+    "resource"    : "source/resource",
+    "translation" : "source/translation",
+    "type"        : "application"
+  }
+}
+
