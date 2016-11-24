@@ -18,6 +18,8 @@
  * @asset(qx/icon/${qx.icontheme}/16/categories/*)
  * @asset(qx/icon/${qx.icontheme}/16/apps/*)
  * @asset(qx/icon/${qx.icontheme}/16/apps/utilities-help.png)
+ * @asset(qx/icon/${qx.icontheme}/16/places/folder.png)
+ * @asset(qx/icon/${qx.icontheme}/16/mimetypes/office-document.png)
  * 
  * @lint ignoreDeprecated(alert)
  */
@@ -40,7 +42,8 @@ qx.Class.define("kisside.Application",
   {
     "authToken" : { nullable : true, init : null, apply : "__applyAuthToken" },
     "user" : { nullable : true, init : null },
-    "userRpc" : { nullable : true, init : null }
+    "userRpc" : { nullable : true, init : null },
+    "fsRpc" : { nullable : true, init : null }
   },
 
   members :
@@ -50,6 +53,8 @@ qx.Class.define("kisside.Application",
     __toolBar : null,
     __tabView : null,
     __curPage : null,
+    __fsPane : null,
+    __fsTree : null,
 
     /**
      * This method contains the initial application code and gets called 
@@ -63,6 +68,7 @@ qx.Class.define("kisside.Application",
 
       // setup RPC
       this.setUserRpc(new kisside.UserRpc(this));
+      this.setFsRpc(new kisside.FSRpc(this));
 
       // get the authtoken cookie value
       this.setAuthToken(qx.bom.Cookie.get("kiss_authtoken"));
@@ -83,6 +89,18 @@ qx.Class.define("kisside.Application",
       this.__checkSignedIn();
     },
 
+    debugRpc : function(result, exc)
+    {
+      if(exc == null) 
+      {
+        alert("Result of async call: " + JSON.stringify(result));
+      } 
+      else 
+      {
+        alert("Exception during async call: " + exc);
+      }
+    }, 
+
     __applyAuthToken : function(value)
     {
       qx.bom.Cookie.set("kiss_authtoken", value);
@@ -93,11 +111,12 @@ qx.Class.define("kisside.Application",
     {
       if(exc == null) 
       {
-//        alert("Result of async call: " + result);
+//        alert("Result of async call: " + JSON.stringify(result));
         if(result !== false)
         {
           this.setUser(result);
-          this._signoutCommand.setEnabled(true);
+          this.__signoutCmd.setEnabled(true);
+          this.__setFSTree();
         }
         else
           this.__signIn();
@@ -125,7 +144,8 @@ qx.Class.define("kisside.Application",
         {
           this.setUser(result.user);
           this.setAuthToken(result.authtoken);
-          this._signoutCommand.setEnabled(true);
+          this.__signoutCmd.setEnabled(true);
+          this.__setFSTree();
         }
       } 
       else 
@@ -147,7 +167,7 @@ qx.Class.define("kisside.Application",
     doSignIn : function(username, password)
     {
       this.debug("doSignIn");
-      this._signoutCommand.setEnabled(false);
+      this.__signoutCmd.setEnabled(false);
       var self = this;
       this.getUserRpc().signIn(username, password, function(result, exc) { self.__onSignIn(result, exc); });
     },
@@ -169,16 +189,119 @@ qx.Class.define("kisside.Application",
     __signOut : function()
     {
       this.debug("doSignIn");
-      this._signoutCommand.setEnabled(false);
+      this.__signoutCmd.setEnabled(false);
       var self = this;
       this.getUserRpc().signOut(function(result, exc) { self.__onSignOut(result, exc); });
     },
+    
+    __onDoOpenCmd : function(result, exc, filename, path, basedir)
+    {
+      if(exc === null)
+      {
+        window.result = result;
+//        this.debug("result = " + JSON.stringify(result));
+        var page = new qx.ui.tabview.Page(filename);
+        page.setLayout(new qx.ui.layout.VBox());
+        page.getChildControl("button").setToolTipText(basedir + "/" + path); 
+        page.setShowCloseButton(true);
+        var editor = new kisside.Editor();
+  //        editor.addListener("change", function() { self.debug("changed"); if(self.__curPage.getLabel()[0] != '*') self.__curPage.setLabel('*' + self.__curPage.getLabel()); });
+        editor.addListener("change", function(e) { this.debug("changed"); if(this.__curPage.getIcon() === '') this.__curPage.setIcon("icon/16/emblems/emblem-important.png"); }, this);
+        editor.setText(result.contents);
+        var mode = kisside.Editor.getModeForPath(filename);
+        if(mode)
+          editor.setMode(mode.mode);
+  //        page.add(new qx.ui.basic.Label("File #" + i + " with close button."));
+        page.add(editor, { flex: 1 });
+        page.addListener("focus", function() { this.debug("page focus"); editor.focus(); });
+        this.__tabView.add(page);
+        this.__tabView.setSelection([page]);
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Unable to open file: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+      }
+    },
+    
+    __doOpenCmd : function()
+    {
+      var selection = this.__fsTree.getSelection(); 
+      if(selection && selection.length > 0)
+      {
+        var items = selection.toArray();
+        var item = items[0];
+        if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
+        {
+          var self = this;
+          this.getFsRpc().read(item.getBasedir(), item.getPath(), function(result, exc) { self.__onDoOpenCmd(result, exc, item.getLabel(), item.getPath(), item.getBasedir()); });
+        }
+      }
+    },
+    
+    __onFSTreeChangeSelection : function(e)
+    {
+      var selection = this.__fsTree.getSelection(); 
+      window.selection = selection;
+      this.debug("fsTree change selection, selection = " + JSON.stringify(selection));
+      
+      this.__newFileCmd.setEnabled(false);
+      this.__newFolderCmd.setEnabled(false);
+      this.__openCmd.setEnabled(false);
+      this.__uploadCmd.setEnabled(false);
+      
+      if(selection && selection.length > 0)
+      {
+        var items = selection.toArray();
+        var item = items[0];
+        this.debug("got selection");
+        if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
+        {
+          this.__openCmd.setEnabled(true);
+        }
+        else
+        {
+          this.__newFileCmd.setEnabled(true);
+          this.__newFolderCmd.setEnabled(true);
+          this.__uploadCmd.setEnabled(true);
+        }
+      }
+    },
 
+    __onGetBaseDirs : function(result, exc)
+    {
+      this.debug("result = " + JSON.stringify(result) + ", exc = " + JSON.stringify(exc));
+      if(exc === null)
+      {
+        this.debug("Response: " + JSON.stringify(result));
+        this.__fsTree = this.__createTree(result);
+//        this.__fsTree.addListener("changeSelection", this.__onFSTreeChangeSelection, this);
+        this.__fsTree.getSelection().addListener("change", this.__onFSTreeChangeSelection, this);
+        this.__fsPane.add(this.__fsTree);
+      }
+      else
+        alert("Error getting base dirs: " + exc);
+    },
+    
+    __setFSTree : function()
+    {
+      this.debug("setFSTree");
+      if(this.__fsTree)
+      {
+        this.__fsPane.remove(this.__fsTree);
+        this.__fsTree = null;
+      }
+      var self = this;
+      this.getFsRpc().listdir("", "", false, function(result, exc) { self.__onGetBaseDirs(result, exc); });
+    },
+    
     __makeMain : function()
     {
       this.__createCommands();
 
-      this.__main = new qx.ui.container.Composite(new qx.ui.layout.VBox);
+      this.__main = new qx.ui.container.Composite(new qx.ui.layout.VBox());
       this.__main.getLayout().setSpacing(0);
       this.__menuBar = this.__createMenuBar();
       this.__main.add(this.__menuBar);
@@ -186,26 +309,25 @@ qx.Class.define("kisside.Application",
       this.__toolBar = this.__createToolBar();
       this.__main.add(this.__toolBar);
 
-      var fsPane = new qx.ui.container.Composite(new qx.ui.layout.Grow).set({
-        width : 200,
+      this.__fsPane = new qx.ui.container.Composite(new qx.ui.layout.Grow()).set({
+        width : 300,
 //        height: 100,
         decorator : "main"
       });
-      var tree = this.__createDummyTree();
-      fsPane.add(tree);
+//      var tree = this.__createVDummyTree();
+//      this.__fsPane.add(tree);
 
-      var editorPane = new qx.ui.container.Composite(new qx.ui.layout.Grow).set({
+      var editorPane = new qx.ui.container.Composite(new qx.ui.layout.Grow()).set({
 //        padding : 10,
 //        maxWidth : 450,
         decorator : "main"
       });
       this.__tabView = new qx.ui.tabview.TabView();
       var self = this;
-      this.__tabView.addListener("changeSelection", function() {
-        self.__curPage = self.__getSelectedPage();
-      });
+      this.__tabView.addListener("changeSelection", function(e) { this.__curPage = self.__getSelectedPage(); if(this.__curPage.getChildren()[0]) this.__curPage.getChildren()[0].focus(); }, this);
 
       this.__tabView.setContentPadding(0, 0, 0, 0);
+/*      
       for (var i=1; i<=20; i++)
       {
         var page = new qx.ui.tabview.Page("File #" + i);
@@ -214,16 +336,18 @@ qx.Class.define("kisside.Application",
         page.setShowCloseButton(true);
         var editor = new kisside.Editor();
 //        editor.addListener("change", function() { self.debug("changed"); if(self.__curPage.getLabel()[0] != '*') self.__curPage.setLabel('*' + self.__curPage.getLabel()); });
-        editor.addListener("change", function() { self.debug("changed"); if(self.__curPage.getIcon() == '') self.__curPage.setIcon("icon/16/emblems/emblem-important.png"); });
+        editor.addListener("change", function() { self.debug("changed"); if(self.__curPage.getIcon() === '') self.__curPage.setIcon("icon/16/emblems/emblem-important.png"); });
         editor.setText("// This is file" + i + ".\n");
 //        page.add(new qx.ui.basic.Label("File #" + i + " with close button."));
         page.add(editor, { flex: 1 });
+        page.addListener("focus", function() { editor.focus(); });
         this.__tabView.add(page);
       }
+*/      
       editorPane.add(this.__tabView);
 
       var pane = new qx.ui.splitpane.Pane("horizontal");
-      pane.add(fsPane, 0);
+      pane.add(this.__fsPane, 0);
       pane.add(editorPane, 1);
       this.__main.add(pane, { flex: 1 });
 
@@ -266,53 +390,144 @@ qx.Class.define("kisside.Application",
     {
       var self = this;
 
-      this._newFileCommand = new qx.ui.command.Command("Ctrl+N");
-      this._newFileCommand.addListener("execute", this.__debugCommand);
-      this._newFileCommand.setToolTipText("New File");
+      this.__newFileCmd = new qx.ui.command.Command("Ctrl+N");
+      this.__newFileCmd.setLabel("New File");
+      this.__newFileCmd.setIcon("icon/16/actions/document-new.png")
+      this.__newFileCmd.addListener("execute", this.__debugCommand);
+      this.__newFileCmd.setToolTipText("New File");
 
-      this._newFolderCommand = new qx.ui.command.Command("Alt+N");
-      this._newFolderCommand.addListener("execute", this.__debugCommand);
-      this._newFolderCommand.setToolTipText("New Folder");
+      this.__newFolderCmd = new qx.ui.command.Command("Alt+N");
+      this.__newFolderCmd.setLabel("New Folder");
+      this.__newFolderCmd.setIcon("icon/16/actions/folder-new.png")
+      this.__newFolderCmd.addListener("execute", this.__debugCommand);
+      this.__newFolderCmd.setToolTipText("New Folder");
 
-      this._openCommand = new qx.ui.command.Command("Ctrl+O");
-      this._openCommand.addListener("execute", this.__debugCommand);
-      this._openCommand.setToolTipText("Open File");
+      this.__deleteCmd = new qx.ui.command.Command("");
+      this.__deleteCmd.setLabel("Delete");
+      this.__deleteCmd.setIcon("icon/16/places/user-trash.png")
+      this.__deleteCmd.addListener("execute", this.__debugCommand);
+      this.__deleteCmd.setToolTipText("Delete File or Folder");
 
-      this._saveCommand = new qx.ui.command.Command("Ctrl+S");
-      this._saveCommand.addListener("execute", this.__debugCommand);
-      this._saveCommand.setToolTipText("Save File");
+      this.__openCmd = new qx.ui.command.Command("Ctrl+O");
+      this.__openCmd.setLabel("Open File");
+      this.__openCmd.setIcon("icon/16/actions/document-open.png");
+      this.__openCmd.addListener("execute", this.__doOpenCmd, this);
+      this.__openCmd.setToolTipText("Open File");
 
-      this._undoCommand = new qx.ui.command.Command("Ctrl+Z");
-      this._undoCommand.addListener("execute", this.__debugCommand);
-      this._undoCommand.setToolTipText("Undo Edit");
+      this.__closeCmd = new qx.ui.command.Command("Ctrl+W");
+      this.__closeCmd.setLabel("Close File");
+//      this.__closeCmd.setIcon("icon/16/actions/document-open.png");
+      this.__closeCmd.addListener("execute", this.__debugCommand);
+      this.__closeCmd.setToolTipText("Close File");
 
-      this._redoCommand = new qx.ui.command.Command("Ctrl+R");
-      this._redoCommand.addListener("execute", this.__debugCommand);
-      this._redoCommand.setToolTipText("Redo Edit");
+      this.__closeAllCmd = new qx.ui.command.Command("");
+      this.__closeAllCmd.setLabel("Close All Files");
+//      this.__closeAllCmd.setIcon("icon/16/actions/document-open.png");
+      this.__closeAllCmd.addListener("execute", this.__debugCommand);
+      this.__closeAllCmd.setToolTipText("Close All Files");
 
-      this._cutCommand = new qx.ui.command.Command("Ctrl+X");
-      this._cutCommand.addListener("execute", this.__debugCommand);
-      this._cutCommand.setToolTipText("Cut");
-      this._cutCommand.setEnabled(false);
+      this.__saveCmd = new qx.ui.command.Command("Ctrl+S");
+      this.__saveCmd.setLabel("Save File");
+      this.__saveCmd.setIcon("icon/16/actions/document-save.png");
+      this.__saveCmd.addListener("execute", this.__debugCommand);
+      this.__saveCmd.setToolTipText("Save File");
 
-      this._copyCommand = new qx.ui.command.Command("Ctrl+S");
-      this._copyCommand.addListener("execute", this.__debugCommand);
-      this._copyCommand.setToolTipText("Copy");
-      this._copyCommand.setEnabled(false);
+      this.__saveAsCmd = new qx.ui.command.Command("Ctrl+Alt+S");
+      this.__saveAsCmd.setLabel("Save File As");
+      this.__saveAsCmd.setIcon("icon/16/actions/document-save-as.png");
+      this.__saveAsCmd.addListener("execute", this.__debugCommand);
+      this.__saveAsCmd.setToolTipText("Save File As");
 
-      this._pasteCommand = new qx.ui.command.Command("Ctrl+V");
-      this._pasteCommand.addListener("execute", this.__debugCommand);
-      this._pasteCommand.setToolTipText("Paste");
-      this._pasteCommand.setEnabled(false);
+      this.__uploadCmd = new qx.ui.command.Command("Ctrl+U");
+      this.__uploadCmd.setLabel("Upload File");
+      this.__uploadCmd.setIcon("icon/16/actions/go-up.png");
+      this.__uploadCmd.addListener("execute", this.__debugCommand);
+      this.__uploadCmd.setToolTipText("Upload File");
 
-      this._signoutCommand = new qx.ui.command.Command();
-      this._signoutCommand.addListener("execute", function() { self.__signOut(); });
-      this._signoutCommand.setToolTipText("Sign Out");
-      this._signoutCommand.setEnabled(false);
+      this.__undoCmd = new qx.ui.command.Command("Ctrl+Z");
+      this.__undoCmd.setLabel("Undo Edit");
+      this.__undoCmd.setIcon("icon/16/actions/edit-undo.png")
+      this.__undoCmd.addListener("execute", this.__debugCommand);
+      this.__undoCmd.setToolTipText("Undo Edit");
 
-      this._aboutCommand = new qx.ui.command.Command();
-      this._aboutCommand.addListener("execute", function() { self.__about(); });
-      this._aboutCommand.setToolTipText("About...");
+      this.__redoCmd = new qx.ui.command.Command("Ctrl+Y");
+      this.__redoCmd.setLabel("Redo Edit");
+      this.__redoCmd.setIcon("icon/16/actions/edit-redo.png")
+      this.__redoCmd.addListener("execute", this.__debugCommand);
+      this.__redoCmd.setToolTipText("Redo Edit");
+
+      this.__findCmd = new qx.ui.command.Command("Ctrl+F");
+      this.__findCmd.setLabel("Find...");
+      this.__findCmd.setIcon("icon/16/actions/edit-find.png")
+      this.__findCmd.addListener("execute", function() { if(self.__curPage) self.__getPageEditor(self.__curPage).find(); });
+      this.__findCmd.setToolTipText("Find");
+
+      this.__findNextCmd = new qx.ui.command.Command("F3");
+      this.__findNextCmd.setLabel("Find Next");
+//      this.__searchNextCmd.setIcon("icon/16/actions/system-search.png")
+      this.__findNextCmd.addListener("execute", function() { if(self.__curPage) self.__getPageEditor(self.__curPage).findNext(); });
+      this.__findNextCmd.setToolTipText("Find Next");
+
+      this.__findPrevCmd = new qx.ui.command.Command("Shift+F3");
+      this.__findPrevCmd.setLabel("Find Previous");
+//      this.__searchPrevCmd.setIcon("icon/16/actions/system-search.png")
+      this.__findPrevCmd.addListener("execute", function() { if(self.__curPage) self.__getPageEditor(self.__curPage).findPrev(); });
+      this.__findPrevCmd.setToolTipText("Find Previous");
+
+      this.__replaceCmd = new qx.ui.command.Command("Ctrl+H");
+      this.__replaceCmd.setLabel("Replace...");
+//      this.__searchNextCmd.setIcon("icon/16/actions/system-search.png")
+      this.__replaceCmd.addListener("execute", function() { if(self.__curPage) self.__getPageEditor(self.__curPage).replace(); });
+      this.__replaceCmd.setToolTipText("Replace...");
+      
+      this.__gotoCmd = new qx.ui.command.Command("Ctrl+G");
+      this.__gotoCmd.setLabel("Goto...");
+//      this.__searchNextCmd.setIcon("icon/16/actions/system-search.png")
+      this.__gotoCmd.addListener("execute", this.__debugCommand);
+      this.__gotoCmd.setToolTipText("Goto Line");
+      
+      this.__acctCmd = new qx.ui.command.Command("");
+      this.__acctCmd.setLabel("Account...");
+      this.__acctCmd.setIcon("icon/16/categories/system.png")
+      this.__acctCmd.addListener("execute", this.__debugCommand);
+      this.__acctCmd.setToolTipText("Account Settings");
+
+      this.__editorCmd = new qx.ui.command.Command("");
+      this.__editorCmd.setLabel("Editor...");
+      this.__editorCmd.setIcon("icon/16/apps/preferences-users.png")
+      this.__editorCmd.addListener("execute", this.__debugCommand);
+      this.__editorCmd.setToolTipText("User Administration");
+
+      this.__usersCmd = new qx.ui.command.Command("");
+      this.__usersCmd.setLabel("Users...");
+      this.__usersCmd.setIcon("icon/16/apps/utilities-text-editor.png")
+      this.__usersCmd.addListener("execute", this.__debugCommand);
+      this.__usersCmd.setToolTipText("Editor Settings");
+
+      this.__refreshCmd = new qx.ui.command.Command("Ctrl+R");
+      this.__refreshCmd.setLabel("Refresh");
+      this.__refreshCmd.setIcon("icon/16/actions/view-refresh.png")
+      this.__refreshCmd.addListener("execute", this.__debugCommand);
+      this.__refreshCmd.setToolTipText("Redo Edit");
+
+      this.__signoutCmd = new qx.ui.command.Command();
+      this.__signoutCmd.setLabel("Refresh");
+      this.__signoutCmd.setIcon("icon/16/actions/view-refresh.png")
+      this.__signoutCmd.addListener("execute", function() { self.__signOut(); });
+      this.__signoutCmd.setToolTipText("Sign Out");
+      this.__signoutCmd.setEnabled(false);
+
+      this.__helpCmd = new qx.ui.command.Command("F1");
+      this.__helpCmd.setLabel("Help");
+      this.__helpCmd.setIcon("icon/16/apps/utilities-help.png")
+      this.__helpCmd.addListener("execute", this.__debugCommand);
+      this.__helpCmd.setToolTipText("Help");
+
+      this.__aboutCmd = new qx.ui.command.Command();
+      this.__aboutCmd.setLabel("About");
+//      this.__aboutCmd.setIcon("icon/16/actions/view-refresh.png")
+      this.__aboutCmd.addListener("execute", function() { self.__about(); });
+      this.__aboutCmd.setToolTipText("About KISSIDE");
     },
 
     __debugButton : function(e) {
@@ -341,7 +556,7 @@ qx.Class.define("kisside.Application",
 
       var fileMenu = new qx.ui.menubar.Button("File", null, this.__createFileMenu());
       var editMenu = new qx.ui.menubar.Button("Edit", null, this.__createEditMenu());
-      var searchMenu = new qx.ui.menubar.Button("Search", null, this.__createSearchMenu());
+      var findMenu = new qx.ui.menubar.Button("Find", null, this.__createFindMenu());
       var gotoMenu = new qx.ui.menubar.Button("Goto", null, this.__createGotoMenu());
       var viewMenu = new qx.ui.menubar.Button("View", null, this.__createViewMenu());
       var settingsMenu = new qx.ui.menubar.Button("Settings", null, this.__createSettingsMenu());
@@ -349,14 +564,14 @@ qx.Class.define("kisside.Application",
 
       menubar.add(fileMenu);
       menubar.add(editMenu);
-      menubar.add(searchMenu);
+      menubar.add(findMenu);
       menubar.add(gotoMenu);
       menubar.add(viewMenu);
       menubar.add(settingsMenu);
       menubar.add(helpMenu);
 
       var logoutButton = new qx.ui.form.Button();
-      logoutButton.setCommand(this._signoutCommand);
+      logoutButton.setCommand(this.__signoutCmd);
       logoutButton.setIcon("icon/16/actions/system-log-out.png");
       logoutButton.setToolTipText("Sign Out");
       menuFrame.add(logoutButton, { flex : 0 });
@@ -368,29 +583,26 @@ qx.Class.define("kisside.Application",
 
     __createFileMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
+      var menu = new qx.ui.menu.Menu();
 
-      var newButton = new qx.ui.menu.Button("New", "icon/16/actions/document-new.png", this._newFileCommand);
-      var openButton = new qx.ui.menu.Button("Open", "icon/16/actions/document-open.png", this._openCommand);
-      var closeButton = new qx.ui.menu.Button("Close");
-      var closeAllButton = new qx.ui.menu.Button("Close All");
-      var saveButton = new qx.ui.menu.Button("Save", "icon/16/actions/document-save.png", this._saveCommand);
-      var saveAsButton = new qx.ui.menu.Button("Save as...", "icon/16/actions/document-save-as.png");
+      var newFileButton = new qx.ui.menu.Button("", "", this.__newFileCmd);
+      var newFolderButton = new qx.ui.menu.Button("", "", this.__newFolderCmd);
+      var openButton = new qx.ui.menu.Button("", "", this.__openCmd);
+      var closeButton = new qx.ui.menu.Button("", "", this.__closeCmd);
+      var closeAllButton = new qx.ui.menu.Button("", "", this.__closeAllCmd);
+      var saveButton = new qx.ui.menu.Button("", "", this.__saveCmd);
+      var saveAsButton = new qx.ui.menu.Button("", "", this.__saveAsCmd);
+      var uploadButton = new qx.ui.menu.Button("", "", this.__uploadCmd);
 //      var printButton = new qx.ui.menu.Button("Print", "icon/16/actions/document-print.png");
 
-      newButton.addListener("execute", this.__debugButton);
-      openButton.addListener("execute", this.__debugButton);
-      closeButton.addListener("execute", this.__debugButton);
-      saveButton.addListener("execute", this.__debugButton);
-      saveAsButton.addListener("execute", this.__debugButton);
-//      printButton.addListener("execute", this.__debugButton);
-
-      menu.add(newButton);
+      menu.add(newFileButton);
+      menu.add(newFolderButton);
       menu.add(openButton);
       menu.add(closeButton);
       menu.add(closeAllButton);
       menu.add(saveButton);
       menu.add(saveAsButton);
+      menu.add(uploadButton);
 //      menu.add(printButton);
 
       return menu;
@@ -398,76 +610,60 @@ qx.Class.define("kisside.Application",
 
     __createEditMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
+      var menu = new qx.ui.menu.Menu();
 
-      var undoButton = new qx.ui.menu.Button("Undo", "icon/16/actions/edit-undo.png", this._undoCommand);
-      var redoButton = new qx.ui.menu.Button("Redo", "icon/16/actions/edit-redo.png", this._redoCommand);
-      var cutButton = new qx.ui.menu.Button("Cut", "icon/16/actions/edit-cut.png", this._cutCommand);
-      var copyButton = new qx.ui.menu.Button("Copy", "icon/16/actions/edit-copy.png", this._copyCommand);
-      var pasteButton = new qx.ui.menu.Button("Paste", "icon/16/actions/edit-paste.png", this._pasteCommand);
+      var undoButton = new qx.ui.menu.Button("", "", this.__undoCmd);
+      var redoButton = new qx.ui.menu.Button("", "", this.__redoCmd);
 
       menu.add(undoButton);
       menu.add(redoButton);
-      menu.addSeparator();
-      menu.add(cutButton);
-      menu.add(copyButton);
-      menu.add(pasteButton);
 
       return menu;
     },
 
-    __createSearchMenu : function()
+    __createFindMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
+      var menu = new qx.ui.menu.Menu();
 
-      var searchButton = new qx.ui.menu.Button("Search...", "icon/16/actions/system-search.png");
-      var nextButton = new qx.ui.menu.Button("Search next...");
-      var previousButton = new qx.ui.menu.Button("Search previous...");
-      var replaceButton = new qx.ui.menu.Button("Replace");
-      var searchFilesButton = new qx.ui.menu.Button("Search in files", "icon/16/actions/system-search.png");
-      var replaceFilesButton = new qx.ui.menu.Button("Replace in files");
+      var findButton = new qx.ui.menu.Button("", "", this.__findCmd);
+      var nextButton = new qx.ui.menu.Button("", "", this.__findNextCmd);
+      var previousButton = new qx.ui.menu.Button("", "", this.__findPrevCmd);
+      var replaceButton = new qx.ui.menu.Button("", "", this.__replaceCmd);
 
-      previousButton.setEnabled(false);
-
-      var self = this;
-      searchButton.addListener("execute", function() { if(self.__curPage) self.__getPageEditor(self.__curPage).search(); });
-      nextButton.addListener("execute", this.__debugButton);
-      previousButton.addListener("execute", this.__debugButton);
-      replaceButton.addListener("execute", this.__debugButton);
-      searchFilesButton.addListener("execute", this.__debugButton);
-      replaceFilesButton.addListener("execute", this.__debugButton);
-
-      menu.add(searchButton);
+      menu.add(findButton);
       menu.add(nextButton);
       menu.add(previousButton);
-      menu.add(replaceButton);
       menu.addSeparator();
-      menu.add(searchFilesButton);
-      menu.add(replaceFilesButton);
+      menu.add(replaceButton);
 
       return menu;
     },
 
     __createViewMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
+      var menu = new qx.ui.menu.Menu();
 
       return menu;
     },
 
     __createGotoMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
+      var menu = new qx.ui.menu.Menu();
+      
+      var gotoButton = new qx.ui.menu.Button("", "", this.__gotoCmd);
+      
+      menu.add(gotoButton);
 
       return menu;
     },
 
     __createSettingsMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
-      var acctButton = new qx.ui.menu.Button("Account", "icon/16/categories/system.png");
-      var editorButton = new qx.ui.menu.Button("Editor", "icon/16/apps/utilities-text-editor.png");
-      var adminButton = new qx.ui.menu.Button("Users", "icon/16/apps/preferences-users.png");
+      var menu = new qx.ui.menu.Menu();
+      
+      var acctButton = new qx.ui.menu.Button("", "", this.__acctCmd);
+      var editorButton = new qx.ui.menu.Button("", "", this.__editorCmd);
+      var adminButton = new qx.ui.menu.Button("", "", this.__usersCmd);
 
       menu.add(acctButton);
       menu.add(editorButton);
@@ -478,14 +674,10 @@ qx.Class.define("kisside.Application",
 
     __createHelpMenu : function()
     {
-      var menu = new qx.ui.menu.Menu;
+      var menu = new qx.ui.menu.Menu();
 
-      var helpButton = new qx.ui.menu.Button("Help", "icon/16/apps/utilities-help.png");
-      var aboutButton = new qx.ui.menu.Button("About...");
-      aboutButton.setCommand(this._aboutCommand);
-
-      helpButton.addListener("execute", this.__debugButton);
-//      aboutButton.addListener("execute", this.__abo);
+      var helpButton = new qx.ui.menu.Button("", "", this.__helpCmd);
+      var aboutButton = new qx.ui.menu.Button("", "", this.__aboutCmd);
 
       menu.add(helpButton);
       menu.addSeparator();
@@ -497,52 +689,337 @@ qx.Class.define("kisside.Application",
     __createToolBar : function()
     {
       // create the toolbar
-      toolbar = new qx.ui.toolbar.ToolBar();
+      var toolbar = new qx.ui.toolbar.ToolBar();
       toolbar.setPadding(0);
 
       // create and add Part 1 to the toolbar
       var part1 = new qx.ui.toolbar.Part();
       part1.setPadding(0);
-      var newFileButton = new qx.ui.toolbar.Button();
-      newFileButton.setIcon("icon/16/actions/document-new.png");
-      newFileButton.setCommand(this._newFileCommand);
-      var newFolderButton = new qx.ui.toolbar.Button();
-      newFolderButton.setIcon("icon/16/actions/folder-new.png");
-      newFolderButton.setCommand(this._newFolderCommand);
-      var trashButton = new qx.ui.toolbar.Button();
-      trashButton.setIcon("icon/16/places/user-trash.png");
+      var newFileButton = new qx.ui.toolbar.Button("", "", this.__newFileCmd);
+      newFileButton.setLabel(null);
+      var newFolderButton = new qx.ui.toolbar.Button("", "", this.__newFolderCmd);
+      newFolderButton.setLabel(null);
+      var openButton = new qx.ui.toolbar.Button("", "", this.__openCmd);
+      openButton.setLabel(null);
+      var deleteButton = new qx.ui.toolbar.Button("", "", this.__deleteCmd);
+      deleteButton.setLabel(null);
+      var uploadButton = new qx.ui.toolbar.Button("", "", this.__uploadCmd);
+      uploadButton.setLabel(null);
 
-      var undoButton = new qx.ui.toolbar.Button();
-      undoButton.setIcon("icon/16/actions/edit-undo.png");
-      undoButton.setCommand(this._undoCommand);
-      var redoButton = new qx.ui.toolbar.Button();
-      redoButton.setIcon("icon/16/actions/edit-redo.png");
-      redoButton.setCommand(this._redoCommand);
+      var undoButton = new qx.ui.toolbar.Button("", "", this.__undoCmd);
+      undoButton.setLabel(null);
+      var redoButton = new qx.ui.toolbar.Button("", "", this.__redoCmd);
+      redoButton.setLabel(null);
 
-      var copyButton = new qx.ui.toolbar.Button();
-      copyButton.setIcon("icon/16/actions/edit-copy.png");
-      copyButton.setCommand(this._copyCommand);
-      var cutButton = new qx.ui.toolbar.Button();
-      cutButton.setIcon("icon/16/actions/edit-cut.png");
-      cutButton.setCommand(this._cutCommand);
-      var pasteButton = new qx.ui.toolbar.Button();
-      pasteButton.setIcon("icon/16/actions/edit-paste.png");
-      pasteButton.setCommand(this._pasteCommand);
+      var refreshButton = new qx.ui.toolbar.Button("", "", this.__refreshCmd);
+      refreshButton.setLabel(null);
+
       part1.add(newFileButton);
       part1.add(newFolderButton);
-      part1.add(trashButton);
+      part1.add(openButton);
+      part1.add(deleteButton);
+      part1.add(uploadButton);
       part1.add(new qx.ui.toolbar.Separator());
       part1.add(undoButton);
       part1.add(redoButton);
       part1.add(new qx.ui.toolbar.Separator());
-      part1.add(copyButton);
-      part1.add(cutButton);
-      part1.add(pasteButton);
+      part1.add(refreshButton);
       toolbar.add(part1);    
 
       return toolbar;  
     },
+    
+      //right click handler 
+    __onFSContextMenu : function(e) 
+    { 
+      var item = e.getTarget(); 
+      var selection = this.__fsTree.getSelection(); 
+      selection.setItem(0, item.getModel()); 
 
+      var contextMenu = new qx.ui.menu.Menu(); 
+      contextMenu.setMinWidth(120); 
+      var newFileButton = new qx.ui.menu.Button("", "", this.__newFileCmd);
+      var newFolderButton = new qx.ui.menu.Button("", "", this.__newFolderCmd);
+      var openButton = new qx.ui.menu.Button("", "", this.__openCmd);
+      var deleteButton = new qx.ui.menu.Button("", "", this.__deleteCmd);
+      var uploadButton = new qx.ui.menu.Button("", "", this.__uploadCmd);
+      var refreshButton = new qx.ui.menu.Button("", "", this.__refreshCmd); 
+
+      contextMenu.add(newFileButton); 
+      contextMenu.add(newFolderButton); 
+      contextMenu.add(openButton); 
+      contextMenu.add(deleteButton); 
+      contextMenu.add(uploadButton); 
+      contextMenu.addSeparator(); 
+      contextMenu.add(refreshButton); 
+
+      contextMenu.openAtPointer(e); 
+
+      contextMenu.addListenerOnce("disappear", function(e) { 
+         contextMenu.getChildren().forEach(function(w) { 
+           w.dispose(); 
+         }); 
+         contextMenu.dispose(); 
+      }); 
+    },
+    
+    __onDblClickFSItem : function(e) 
+    { 
+      var item = e.getTarget(); 
+      this.debug(item.getModel().getPath() + '/' + item.getModel().getLabel()); 
+      this.__doOpenCmd();
+    }, 
+
+    __createTree : function(basedirs)
+    {
+      var root = {
+        label: "Root",
+        children: [],
+        icon: "folder",
+        loaded: true,
+        basedir: "",
+        path: "",
+        stat: null
+      };
+      root = qx.data.marshal.Json.createModel(root, true)
+      this.__addTreeChildren(root, basedirs, "");
+
+      var tree = new qx.ui.tree.VirtualTree(root, "label", "children");
+      this.getRoot().add(tree, {edge: 20});
+
+      tree.setIconPath("icon");
+      tree.setIconOptions({
+        converter : function(value, model)
+        {
+          if (value == "default") {
+            if (model.getChildren != null) {
+              return "icon/16/places/folder.png";
+            } else {
+              return "icon/16/mimetypes/text-plain.png";
+            }
+          } else {
+            return "resource/kisside/loading22.gif";
+          }
+        }
+      });
+      
+/*      
+      //right click handler 
+      function _onContextMenu(e) { 
+         var item = e.getTarget(); 
+         var selection = tree.getSelection(); 
+         selection.setItem(0, item.getModel()); 
+
+         var contextMenu = new qx.ui.menu.Menu(); 
+         contextMenu.setMinWidth(120); 
+         var newButton = new qx.ui.menu.Button("New"); 
+         var editButton = new qx.ui.menu.Button("Edit"); 
+
+         contextMenu.add(editButton); 
+         contextMenu.add(newButton); 
+
+         contextMenu.openAtPointer(e); 
+
+         contextMenu.addListenerOnce("disappear", function(e) { 
+           contextMenu.getChildren().forEach(function(w) { 
+             w.dispose(); 
+           }); 
+           contextMenu.dispose(); 
+         }); 
+      } 
+*/      
+
+      var self = this;
+      var delegate = {
+        configureItem : function(item) 
+        {
+          item.addListener("dblclick", function(e) { self.__onDblClickFSItem(e); }, this); 
+          item.addListener("contextmenu", function(e) { self.__onFSContextMenu(e); }, this);
+        },
+        bindItem : function(controller, item, index)
+        {
+          controller.bindDefaultProperties(item, index);
+
+          controller.bindProperty("", "open",
+          {
+            converter : function(value, model, source, target)
+            {
+              var isOpen = target.isOpen();
+              if (isOpen && !value.getLoaded())
+              {
+                value.setLoaded(true);
+                self.debug("value = " + JSON.stringify(value));
+//                var path = value.getLabel() == value.getBasedir() ? "" : value.getLabel();
+                self.getFsRpc().listdir(value.getBasedir(), value.getPath(), false, function(result, exc)
+                {
+                  if(exc === null)
+                  {
+                    tree.setAutoScrollIntoView(false);
+                    value.getChildren().removeAll();
+                    self.__addTreeChildren(value, result);
+                    tree.setAutoScrollIntoView(true);
+                  }
+                  else
+                    alert("Error retrieving directory: " + exc);
+                });
+              }
+              else
+                self.debug("dbl clicked " + value.getLabel());
+
+              return isOpen;
+            }
+          }, item, index);
+        }
+      };
+      tree.setDelegate(delegate);
+      
+      tree.setHideRoot(true);
+      
+/*      
+      var menu = new qx.ui.menu.Menu;
+      var refreshButton = new qx.ui.menu.Button("New", "icon/16/actions/document-new.png", this._newFileCommand);
+//      var openButton = new qx.ui.menu.Button("Open", "icon/16/actions/document-open.png", this._openCommand);
+//      var closeButton = new qx.ui.menu.Button("Close");
+      refreshButton.addListener("execute", this.__debugButton);
+      menu.add(refreshButton);
+      tree.setContextMenu(menu);
+*/      
+/*      
+      // Add a context menu to the tree 
+      var tree_context = new qx.ui.menu.Menu; 
+      var cmd3 = new qx.event.Command(); 
+      cmd3.addListener('execute', function(){alert("Tree Context 1")}, this ); 
+      tree_context.add( new qx.ui.menu.Button("Tree Context 1", null, cmd3) ); 
+      var cmd4 = new qx.event.Command(); 
+      cmd4.addListener('execute', function(){alert("Tree Context 2")}, this ); 
+      tree_context.add( new qx.ui.menu.Button("Tree Context 2", null, cmd4) ); 
+      tree.setContextMenu( tree_context ); 
+*/      
+      
+      return tree;
+    },
+    
+    __addTreeChildren : function(parent, dirs, basedir)
+    {
+      for(var i = 0; i < dirs.length; i++) 
+      {
+        var node = {
+          label: dirs[i].name,
+          icon: "default",
+          loaded: true,
+          basedir: (basedir === "") ? dirs[i].name : parent.getBasedir(),
+          path: (basedir === "") ? "" : parent.getPath() + ((parent.getPath() !== "") ? "/" + dirs[i].name : dirs[i].name),
+          stat: dirs[i].stat
+        }
+
+        this.debug(dirs[i].name + ": mode = " + dirs[i].stat.mode);
+        if(dirs[i].stat.mode & kisside.FSRpc.S_IFDIR)
+        {
+          node.loaded = false;
+          node.children = [{
+            label: "Loading",
+            icon: "loading"
+          }];
+        }
+        
+        var model = qx.data.marshal.Json.createModel(node, true);
+        parent.getChildren().push(model);
+        if(dirs[i].entries)
+          this.__addTreeChildren(model, dirs[i].entries, model.getBasedir());
+      }
+    }, 
+    
+    count : 0,
+    __createVDummyTree : function()
+    {
+      var root = {
+        label: "Root",
+        children: [],
+        icon: "default",
+        loaded: true
+      };
+      root = qx.data.marshal.Json.createModel(root, true)
+      this.createRandomData(root);
+
+      var tree = new qx.ui.tree.VirtualTree(root, "label", "children");
+      this.getRoot().add(tree, {edge: 20});
+
+      tree.setIconPath("icon");
+      tree.setIconOptions({
+        converter : function(value, model)
+        {
+          if (value == "default") {
+            if (model.getChildren != null) {
+              return "icon/16/places/folder.png";
+            } else {
+              return "icon/16/mimetypes/office-document.png";
+            }
+          } else {
+            return "resource/kisside/loading22.gif";
+          }
+        }
+      });
+
+      var that = this;
+      var delegate = {
+        bindItem : function(controller, item, index)
+        {
+          controller.bindDefaultProperties(item, index);
+
+          controller.bindProperty("", "open",
+          {
+            converter : function(value, model, source, target)
+            {
+              var isOpen = target.isOpen();
+              if (isOpen && !value.getLoaded())
+              {
+                value.setLoaded(true);
+
+                qx.event.Timer.once(function()
+                {
+                  tree.setAutoScrollIntoView(false);
+                  value.getChildren().removeAll();
+                  this.createRandomData(value);
+                  tree.setAutoScrollIntoView(true);
+                }, that, 1000);
+              }
+
+              return isOpen;
+            }
+          }, item, index);
+        }
+      };
+      tree.setDelegate(delegate);
+      
+      tree.setHideRoot(true);
+      
+      return tree;
+    },
+
+    createRandomData : function(parent)
+    {
+      var items = parseInt(Math.random() * 50);
+
+      for (var i = 0; i < items; i++) {
+        var node = {
+          label: "Item " + this.count++,
+          icon: "default",
+          loaded: true
+        }
+
+        if (Math.random() > 0.3)
+        {
+          node["loaded"] = false;
+          node["children"] = [{
+            label: "Loading",
+            icon: "loading"
+          }];
+        }
+
+        parent.getChildren().push(qx.data.marshal.Json.createModel(node, true));
+      }
+    }, 
+    
     __createDummyTree : function()
     {
       var tree = new qx.ui.tree.Tree();
@@ -565,8 +1042,6 @@ qx.Class.define("kisside.Application",
       var te1_2_1 = new qx.ui.tree.TreeFile("Windows (C:)");
       var te1_2_2 = new qx.ui.tree.TreeFile("Documents (D:)");
       te1_2.add(te1_2_1, te1_2_2);
-
-
 
       var te2 = new qx.ui.tree.TreeFolder("Inbox");
 

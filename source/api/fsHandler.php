@@ -5,11 +5,37 @@ require_once("auth.php");
 
 class fsHandler extends kisshandler
 {
+  // error codes
   const ERR_INVALID_BASEDIR = 3000;
+
+  // stat mode flags
+  const S_IFMT = 0170000;   // bit mask for the file type bit fields
+  const S_IFSOCK = 0140000; // socket
+  const S_IFLNK = 0120000;  // symbolic link
+  const S_IFREG = 0100000;  // regular file
+  const S_IFBLK = 060000;   // block device
+  const S_IFDIR = 040000;   // directory
+  const S_IFCHR = 020000;   // character device
+  const S_IFIFO = 010000;   // FIFO
+  const S_ISUID = 04000;    // set-user-ID bit
+  const S_ISGID = 02000;    // set-group-ID bit (see below)
+  const S_ISVTX = 01000;    // sticky bit (see below)
+  const S_IRWXU = 0700;     // mask for file owner permissions
+  const S_IRUSR = 0400;     // owner has read permission
+  const S_IWUSR = 0200;     // owner has write permission
+  const S_IXUSR = 0100;     // owner has execute permission
+  const S_IRWXG = 070;      // mask for group permissions
+  const S_IRGRP = 040;      // group has read permission
+  const S_IWGRP = 020;      // group has write permission
+  const S_IXGRP = 010;      // group has execute permission
+  const S_IRWXO = 07;       // mask for permissions for others (not in group)
+  const S_IROTH = 04;       // others have read permission
+  const S_IWOTH = 02;       // others have write permission
+  const S_IXOTH = 01;       // others have execute permission
 
   protected function validPath($path)
   {
-    return $path[0] != '.' && $path[0] != '/';
+    return strlen($path) == 0 || ($path[0] != '.' && $path[0] != '/');
   }
 
   public function method_stat($req)
@@ -37,11 +63,45 @@ class fsHandler extends kisshandler
     $entries = scandir($path);
     if($entries)
     {
+      // do directories 
       foreach($entries as $entry)
       {
-        $direntry = array("name" => $entry, "stat" => stat("$path/$entry"), "entries" => null);
-        if(is_dir("$path/$entry") && $recurse)
+        if($entry == "." || $entry == "..")
+          continue;
+        if(!is_dir("$path/$entry"))
+          continue;
+        try
+        {
+          $stat = stat("$path/$entry");
+        }
+        catch(Exception $e)
+        {
+          continue;
+        }
+        $direntry = array("name" => $entry, "stat" => $stat, "entries" => null);
+        if($recurse)
           $direntry["entries"] = $this->scanDir("$path/$entry", true);
+        $dir[] = $direntry;
+      }
+      
+      // now do files
+      foreach($entries as $entry)
+      {
+        if($entry == "." || $entry == "..")
+          continue;
+        if(!is_file("$path/$entry"))
+          continue;
+        try
+        {
+          $stat = stat("$path/$entry");
+        }
+        catch(Exception $e)
+        {
+          continue;
+        }
+        if(!($stat["mode"] & (self::S_IFREG | self::S_IFDIR)))
+          continue;
+        $direntry = array("name" => $entry, "stat" => $stat, "entries" => null);
         $dir[] = $direntry;
       }
       return $dir;
@@ -174,8 +234,8 @@ class fsHandler extends kisshandler
     $params = $req["params"][0];
     if(!$this->checkParams($params, array("authtoken", "basedir", "path")))
       return $this->newParamErrorResp($req);
-    $this->trimParams($params]);
-    if(!$params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]))
+    $this->trimParams($params);
+    if($params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]))
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))
     {
@@ -200,7 +260,7 @@ class fsHandler extends kisshandler
     if(!$this->checkParams($params, array("authtoken", "basedir", "path", "contents")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
-    if(!$params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]) || $params["contents"] == null)
+    if($params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]) || $params["contents"] == null)
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))
     {

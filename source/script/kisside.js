@@ -20,7 +20,7 @@ qx.$$g = {}
 
 qx.$$loader = {
   parts : {"boot":[0]},
-  packages : {"0":{"uris":["__out__:kisside.ed07a6276daf.js","kisside:kisside/Application.js","kisside:kisside/KissRpc.js","__out__:kisside.50fc4ee71e53.js","kisside:kisside/UserRpc.js","__out__:kisside.2a5dc636607e.js","kisside:kisside/MessageBox.js","kisside:kisside/SignInDialog.js","__out__:kisside.194b7df9e859.js","kisside:kisside/Editor.js","__out__:kisside.8e29b25b1f54.js"]}},
+  packages : {"0":{"uris":["__out__:kisside.ef25d6257542.js","kisside:kisside/Application.js","kisside:kisside/KissRpc.js","__out__:kisside.50fc4ee71e53.js","kisside:kisside/UserRpc.js","kisside:kisside/FSRpc.js","__out__:kisside.2a5dc636607e.js","kisside:kisside/MessageBox.js","kisside:kisside/SignInDialog.js","__out__:kisside.5031f6cc63ef.js","kisside:kisside/Editor.js","__out__:kisside.7fcbce197e40.js"]}},
   urisBefore : [],
   cssBefore : [],
   boot : "boot",
