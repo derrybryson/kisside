@@ -511,8 +511,8 @@ qx.Class.define("kisside.Application",
       this.__refreshCmd.setToolTipText("Redo Edit");
 
       this.__signoutCmd = new qx.ui.command.Command();
-      this.__signoutCmd.setLabel("Refresh");
-      this.__signoutCmd.setIcon("icon/16/actions/view-refresh.png")
+      this.__signoutCmd.setLabel("Sign Out");
+//      this.__signoutCmd.setIcon("icon/16/actions/view-refresh.png")
       this.__signoutCmd.addListener("execute", function() { self.__signOut(); });
       this.__signoutCmd.setToolTipText("Sign Out");
       this.__signoutCmd.setEnabled(false);
@@ -547,10 +547,10 @@ qx.Class.define("kisside.Application",
 
     __createMenuBar : function()
     {
-      var frame = new qx.ui.container.Composite(new qx.ui.layout.Grow);
+      var frame = new qx.ui.container.Composite(new qx.ui.layout.Grow());
       var menuFrame = new qx.ui.container.Composite(new qx.ui.layout.HBox());
 
-      var menubar = new qx.ui.menubar.MenuBar;
+      var menubar = new qx.ui.menubar.MenuBar();
       menubar.setWidth(600);
       menuFrame.add(menubar, { flex: 1 });
 
@@ -573,6 +573,7 @@ qx.Class.define("kisside.Application",
       var logoutButton = new qx.ui.form.Button();
       logoutButton.setCommand(this.__signoutCmd);
       logoutButton.setIcon("icon/16/actions/system-log-out.png");
+      logoutButton.setLabel(null);
       logoutButton.setToolTipText("Sign Out");
       menuFrame.add(logoutButton, { flex : 0 });
 
