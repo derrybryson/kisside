@@ -32,6 +32,10 @@ class fsHandler extends kisshandler
   const S_IROTH = 04;       // others have read permission
   const S_IWOTH = 02;       // others have write permission
   const S_IXOTH = 01;       // others have execute permission
+  
+  // write flags
+  const WRITE_FLAG_OVERWRITE = 1;       // overwrite existing file
+  const WRITE_FLAG_OVERWRITE_MOD = 2;   // overwrite file existing file 
 
   protected function validPath($path)
   {
@@ -49,7 +53,7 @@ class fsHandler extends kisshandler
     if($this->checkUserAuth($params["authtoken"]))
     {
       if(array_key_exists($params["basedir"], $BASE_DIRS))
-        return $this->newResp(stat($params["filename"], null, $req["id"]));
+        return $this->newResp(stat($params["filename"]), null, $req["id"]));
       else
         return $this->newResp(null, $this->newError(fsHandler::ERR_INVALID_BASEDIR, "Invalid basedir '{$params["basedir"]}'"), $req["id"]);
     }
@@ -260,23 +264,29 @@ class fsHandler extends kisshandler
     if(!$this->checkParams($params, array("authtoken", "basedir", "path", "contents")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
-    if($params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]) || $params["contents"] == null)
+    if($params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]) || $params["contents"] === null)
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))
     {
       if(array_key_exists($params["basedir"], $BASE_DIRS))
       {
-        $tmpname = tempnam($BASE_DIRS[$params["basedir"]]);
+        error_log("temp path = " . $BASE_DIRS[$params["basedir"]] . dirname($params["path"]) . ", contents = " . print_r($params["contents"], true));
+        $tmpname = tempnam($BASE_DIRS[$params["basedir"]] . dirname($params["path"]), "kisside");
         $result = null;
-        if(file_put_contents($tmpname, $params["contents"]))
+//        if(file_put_contents($tmpname, $params["contents"]))
+        if($fp = fopen($tmpname, "w"))
         {
+          if($params["contents"] != "")
+            fwrite($fp, $params["contents"]);
+          fclose($fp);
+          chmod($tmpname, DEF_FILE_MODE);
           if(rename($tmpname, $BASE_DIRS[$params["basedir"]] . $params["path"]))
             $result = stat($BASE_DIRS[$params["basedir"]] . $params["path"]);
         }
         if(!$result)
         {
           unlink($tmpname);
-          return $this->newResp(null, $this->newError(JSONRPC2Handler::ERR_INTERNAL_ERROR, "Unknown error"), $req["id"]);
+          return $this->newResp(null, $this->newError(QooxDooRPCHandler::ERR_INTERNAL_ERROR, "Unknown error"), $req["id"]);
         }
         else
           return $this->newResp($result, null, $req["id"]);

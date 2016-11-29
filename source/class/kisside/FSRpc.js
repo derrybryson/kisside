@@ -49,44 +49,44 @@ qx.Class.define("kisside.FSRpc",
 
   members :
   {
-    stat : function(filename, callback)
+    stat : function(filename, callback, context)
     {
-      this.__call(callback, "stat", { "authtoken" : this.__app.getAuthToken(), "filename" : filename });
+      this.__call(callback, "stat", { "authtoken" : this.__app.getAuthToken(), "filename" : filename }, context);
     },
     
-    listdir : function(basedir, path, recurse, callback)
+    listdir : function(basedir, path, recurse, callback, context)
     {
-      this.__call(callback, "listdir", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "recurse" : recurse });
+      this.__call(callback, "listdir", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "recurse" : recurse }, context);
     },
     
-    mkdir : function(basedir, path, callback)
+    mkdir : function(basedir, path, callback, context)
     {
-      this.__call(callback, "mkdir", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path });
+      this.__call(callback, "mkdir", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
-    rmdir : function(basedir, path, callback)
+    rmdir : function(basedir, path, callback, context)
     {
-      this.__call(callback, "rmdir", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path });
+      this.__call(callback, "rmdir", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
-    rename : function(basedir, oldname, newname, callback)
+    rename : function(basedir, oldname, newname, callback, context)
     {
-      this.__call(callback, "rename", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "oldname" : oldname, "newname" : newname });
+      this.__call(callback, "rename", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "oldname" : oldname, "newname" : newname }, context);
     },
     
-    unlink : function(basedir, path, callback)
+    unlink : function(basedir, path, callback, context)
     {
-      this.__call(callback, "rename", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path });
+      this.__call(callback, "rename", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
-    read : function(basedir, path, callback)
+    read : function(basedir, path, callback, context)
     {
-      this.__call(callback, "read", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path });
+      this.__call(callback, "read", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
-    write : function(basedir, path, contents, callback)
+    write : function(basedir, path, contents, callback, context)
     {
-      this.__call(callback, "read", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "contents" : contents });
+      this.__call(callback, "write", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "contents" : contents }, context);
     }
   }
 });

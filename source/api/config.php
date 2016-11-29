@@ -12,4 +12,7 @@ $BASE_DIRS = array(
   "derry" => "/home/derry/"
 );
 
+define("DEF_FILE_MODE", 0664);
+define("DEF_DIR_MODE", 0775);
+
 ?>

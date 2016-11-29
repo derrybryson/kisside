@@ -47,16 +47,25 @@ qx.Class.define("kisside.KissRpc",
     __app : null,
     __rpc : null,
 
-    __onCall : function(result, exc, callback, method, params)
+    __onCall : function(result, exc, callback, method, params, context)
     {
       if(callback)
-        callback(result, exc);
+      {
+        if(context)
+        {
+          console.log("using context");
+          window.context = context;
+          callback.call(context, result, exc)
+        }
+        else
+          callback(result, exc);
+      }
     },
 
-    __call : function(callback, method, params)
+    __call : function(callback, method, params, context)
     {
       var self = this;
-      this.__rpc.callAsync(function(result, exc) { self.__onCall(result, exc, callback, method, params); }, method, params);
+      this.__rpc.callAsync(function(result, exc) { self.__onCall(result, exc, callback, method, params, context); }, method, params);
     }
   }
 });
