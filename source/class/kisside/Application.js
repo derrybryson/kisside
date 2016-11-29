@@ -194,19 +194,19 @@ qx.Class.define("kisside.Application",
       this.getUserRpc().signOut(this.__onSignOut, this);
     },
     
-    __onDoNewCmd(result, exc, filename, basedir, path)
+    __onDoNewCmd : function(result, exc, filename, basedir, path)
     {
       if(exc === null)
       {
         window.result = result;
-        var page = new kisside.PageEditor(filename, basedir, path, result.contents);
+        var page = new kisside.PageEditor(filename, basedir, path + "/" + filename, result.stat, result.contents);
         this.__tabView.add(page);
         this.__tabView.setSelection([page]);
         this.__refreshFSTreeSelected();
       }
       else
       {
-        var mb = new kisside.MessageBox(this, "Error", "Unable to save file: " + exc, 
+        var mb = new kisside.MessageBox(this, "Error", "Unable to create new file: " + exc, 
                                          kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
         this.getRoot().add(mb, {left:20, top:20});
         mb.center();
@@ -223,7 +223,7 @@ qx.Class.define("kisside.Application",
         if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
         {
           var filename = "NewFile.js";
-          this.getFsRpc().write(item.getBasedir(), item.getPath() + "/" + filename, "test", function(result, exc) { this.__onDoNewCmd(result, exc, filename, item.getBasedir(), item.getPath()); }, this);
+          this.getFsRpc().write(item.getBasedir(), item.getPath() + "/" + filename, "", 0, 0, function(result, exc) { this.__onDoNewCmd(result, exc, filename, item.getBasedir(), item.getPath()); }, this);
         }
       }
     },
@@ -250,7 +250,7 @@ qx.Class.define("kisside.Application",
         page.add(editor, { flex: 1 });
         page.addListener("focus", function() { this.debug("page focus"); editor.focus(); });
 */
-        var page = new kisside.PageEditor(filename, basedir, path, result.contents);
+        var page = new kisside.PageEditor(filename, basedir, path, result.stat, result.contents);
         this.__tabView.add(page);
         this.__tabView.setSelection([page]);
       }
@@ -277,12 +277,13 @@ qx.Class.define("kisside.Application",
       }
     },
     
-    __onDoSaveCmd(result, exc, page)
+    __onDoSaveCmd : function(result, exc, page)
     {
       if(exc === null)
       {
         window.result = result;
         page.setChanged(false);
+        page.setStat(result.stat);
       }
       else
       {
@@ -301,7 +302,7 @@ qx.Class.define("kisside.Application",
         var editor = page.getEditor();
         if(editor)
         {
-          this.getFsRpc().write(page.getBasedir(), page.getPath(), editor.getText(), function(result, exc) { this.__onDoSaveCmd(result, exc, page); }, this);
+          this.getFsRpc().write(page.getBasedir(), page.getPath(), editor.getText(), page.getStat().mtime, kisside.FSRpc.WRITE_FLAG_OVERWRITE, function(result, exc) { this.__onDoSaveCmd(result, exc, page); }, this);
         }
       }
     },
@@ -361,7 +362,7 @@ qx.Class.define("kisside.Application",
       this.getFsRpc().listdir("", "", false, this.__onGetBaseDirs, this);
     },
     
-    __refreshFSTreeSelected()
+    __refreshFSTreeSelected : function()
     {
       this.debug("__refreshFSTreeSelected");
       var selection = this.__fsTree.getSelection(); 

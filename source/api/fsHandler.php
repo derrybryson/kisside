@@ -7,6 +7,12 @@ class fsHandler extends kisshandler
 {
   // error codes
   const ERR_INVALID_BASEDIR = 3000;
+  const ERR_FILE_EXISTS = 3001;
+  const ERR_FOLDER_EXISTS = 3002;
+  const ERR_FILE_EXISTS_MOD = 3003;
+  const ERR_NO_FILE = 3004;
+  const ERR_NO_FOLDER = 3005;
+  const ERR_SPECIAL_FILE = 3006;
 
   // stat mode flags
   const S_IFMT = 0170000;   // bit mask for the file type bit fields
@@ -53,7 +59,7 @@ class fsHandler extends kisshandler
     if($this->checkUserAuth($params["authtoken"]))
     {
       if(array_key_exists($params["basedir"], $BASE_DIRS))
-        return $this->newResp(stat($params["filename"]), null, $req["id"]));
+        return $this->newResp(stat($params["filename"]), null, $req["id"]);
       else
         return $this->newResp(null, $this->newError(fsHandler::ERR_INVALID_BASEDIR, "Invalid basedir '{$params["basedir"]}'"), $req["id"]);
     }
@@ -261,7 +267,7 @@ class fsHandler extends kisshandler
     global $BASE_DIRS;
 
     $params = $req["params"][0];
-    if(!$this->checkParams($params, array("authtoken", "basedir", "path", "contents")))
+    if(!$this->checkParams($params, array("authtoken", "basedir", "path", "contents", "mtime", "flags")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
     if($params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]) || $params["contents"] === null)
@@ -270,6 +276,25 @@ class fsHandler extends kisshandler
     {
       if(array_key_exists($params["basedir"], $BASE_DIRS))
       {
+        $fullpath = $BASE_DIRS[$params["basedir"]] . $params["path"];
+        if(file_exists($fullpath))
+        {
+          $stat = stat($fullpath);
+          if($stat["mode"] & fsHandler::S_IFDIR)
+            return $this->newResp(null, $this->newError(fsHandler::ERR_FOLDER_EXISTS, "Folder exists '{$params["path"]}'"), $req["id"]);
+          else if($stat["mode"] & fsHandler::S_IFREG)
+          {
+            if($params["flags"] & fsHandler::WRITE_FLAG_OVERWRITE)
+            {
+              if($params["mtime"] && $stat["mtime"] > $params["mtime"] && !($params["flags"] & fsHandler::WRITE_FLAG_OVERWRITE_MOD))
+                return $this->newResp(null, $this->newError(fsHandler::ERR_FILE_EXISTS_MOD, "File exists '{$params["path"]}'"), $req["id"]);
+            }
+            else
+              return $this->newResp(null, $this->newError(fsHandler::ERR_FILE_EXISTS, "File exists '{$params["path"]}'"), $req["id"]);
+          }  
+          else
+            return $this->newResp(null, $this->newError(fsHandler::ERR_SPECIAL_FILE, "Special file '{$params["path"]}'"), $req["id"]);
+        }
         error_log("temp path = " . $BASE_DIRS[$params["basedir"]] . dirname($params["path"]) . ", contents = " . print_r($params["contents"], true));
         $tmpname = tempnam($BASE_DIRS[$params["basedir"]] . dirname($params["path"]), "kisside");
         $result = null;
@@ -280,8 +305,8 @@ class fsHandler extends kisshandler
             fwrite($fp, $params["contents"]);
           fclose($fp);
           chmod($tmpname, DEF_FILE_MODE);
-          if(rename($tmpname, $BASE_DIRS[$params["basedir"]] . $params["path"]))
-            $result = stat($BASE_DIRS[$params["basedir"]] . $params["path"]);
+          if(rename($tmpname, $fullpath))
+            $result = array("stat" => stat($fullpath));
         }
         if(!$result)
         {

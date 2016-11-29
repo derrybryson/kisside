@@ -11,6 +11,12 @@ qx.Class.define("kisside.FSRpc",
   {
     // error codes
     ERR_INVALID_BASEDIR : 3000,
+    ERR_FILE_EXISTS : 3001,
+    ERR_FOLDER_EXISTS : 3002,
+    ERR_FILE_EXISTS_MOD : 3003,
+    ERR_NO_FILE : 3004,
+    ERR_NO_FOLDER : 3005,
+    ERR_SPECIAL_FILE : 3006,
     
     // stat mode flags
     S_IFMT : 0170000,   // bit mask for the file type bit fields
@@ -35,9 +41,13 @@ qx.Class.define("kisside.FSRpc",
     S_IRWXO : 07,       // mask for permissions for others (not in group)
     S_IROTH : 04,       // others have read permission
     S_IWOTH : 02,       // others have write permission
-    S_IXOTH : 01        // others have execute permission
+    S_IXOTH : 01,        // others have execute permission
+  
+    // write flags
+    WRITE_FLAG_OVERWRITE : 1,       // overwrite existing file
+    WRITE_FLAG_OVERWRITE_MOD : 2    // overwrite file existing file 
   },
-
+  
   construct : function(app)
   {
     this.base(arguments, app, "api/index.php", "fs");
@@ -84,9 +94,9 @@ qx.Class.define("kisside.FSRpc",
       this.__call(callback, "read", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
-    write : function(basedir, path, contents, callback, context)
+    write : function(basedir, path, contents, mtime, flags, callback, context)
     {
-      this.__call(callback, "write", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "contents" : contents }, context);
+      this.__call(callback, "write", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "contents" : contents, "mtime" : mtime, "flags" : flags }, context);
     }
   }
 });

@@ -8,12 +8,13 @@ qx.Class.define("kisside.PageEditor",
 {
   extend : qx.ui.tabview.Page,
 
-  construct : function(filename, basedir, path, contents)
+  construct : function(filename, basedir, path, stat, contents)
   {
     this.base(arguments, filename);
     this.setFilename(filename);
     this.setBasedir(basedir);
     this.setPath(path);
+    this.setStat(stat);
     this.setLayout(new qx.ui.layout.VBox());
     this.getChildControl("button").setToolTipText(basedir + "/" + path); 
     this.setShowCloseButton(true);
@@ -39,6 +40,7 @@ qx.Class.define("kisside.PageEditor",
     "filename" : { nullable : true, init : null },
     "basedir" : { nullable : true, init : null },
     "path" : { nullable : true, init : null },
+    "stat" : { nullable : true, init : null },
     "editor" : { nullable : true, init : null }
   },
   
