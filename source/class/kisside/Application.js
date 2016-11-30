@@ -277,6 +277,22 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __onDoSaveMod : function(resp)
+    {
+      if(resp == kisside.MessageBox.RESP_YES)
+      {
+        var page = this.__getSelectedPage();
+        if(page && page.getChanged())
+        {
+          var editor = page.getEditor();
+          if(editor)
+          {
+            this.getFsRpc().write(page.getBasedir(), page.getPath(), editor.getText(), page.getStat().mtime, kisside.FSRpc.WRITE_FLAG_OVERWRITE | kisside.FSRpc.WRITE_FLAG_OVERWRITE_MOD, function(result, exc) { this.__onDoSaveCmd(result, exc, page); }, this);
+          }
+        }
+      }
+    },
+    
     __onDoSaveCmd : function(result, exc, page)
     {
       if(exc === null)
@@ -287,10 +303,21 @@ qx.Class.define("kisside.Application",
       }
       else
       {
-        var mb = new kisside.MessageBox(this, "Error", "Unable to save file: " + exc, 
-                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
-        this.getRoot().add(mb, {left:20, top:20});
-        mb.center();
+        if(exc.code == kisside.FSRpc.ERR_FILE_EXISTS_MOD)
+        {
+          var mb = new kisside.MessageBox(this, "Warning", "This file has been modified on disk, overwrite anyway?", 
+                                           kisside.MessageBox.FLAG_WARNING | kisside.MessageBox.FLAG_YES_NO, this.__onDoSaveMod, this);
+          this.getRoot().add(mb, {left:20, top:20});
+          mb.center();
+        }
+        else
+        {
+          this.debug("code = " + JSON.stringify(exc));
+          var mb = new kisside.MessageBox(this, "Error", "Unable to save file: " + exc, 
+                                           kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+          this.getRoot().add(mb, {left:20, top:20});
+          mb.center();
+        }
       }
     },
     

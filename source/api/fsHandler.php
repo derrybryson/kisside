@@ -287,7 +287,7 @@ class fsHandler extends kisshandler
             if($params["flags"] & fsHandler::WRITE_FLAG_OVERWRITE)
             {
               if($params["mtime"] && $stat["mtime"] > $params["mtime"] && !($params["flags"] & fsHandler::WRITE_FLAG_OVERWRITE_MOD))
-                return $this->newResp(null, $this->newError(fsHandler::ERR_FILE_EXISTS_MOD, "File exists '{$params["path"]}'"), $req["id"]);
+                return $this->newResp(null, $this->newError(fsHandler::ERR_FILE_EXISTS_MOD, "File has been modified '{$params["path"]}'"), $req["id"]);
             }
             else
               return $this->newResp(null, $this->newError(fsHandler::ERR_FILE_EXISTS, "File exists '{$params["path"]}'"), $req["id"]);

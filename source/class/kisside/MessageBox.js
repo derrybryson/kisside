@@ -29,7 +29,7 @@ qx.Class.define("kisside.MessageBox",
     RESP_YES : 4
   }, 
 
-  construct : function(app, title, msg, flags, callback)
+  construct : function(app, title, msg, flags, callback, context)
   {
     this.base(arguments, title);
     this.__app = app;
@@ -40,7 +40,7 @@ qx.Class.define("kisside.MessageBox",
     this.setShowMinimize(false);
     this.setShowClose(false);
 
-    var dialogPane = new qx.ui.container.Composite(new qx.ui.layout.VBox());
+    var dialogPane = new qx.ui.container.Composite(new qx.ui.layout.VBox(20));
 
     var atom = new qx.ui.basic.Atom(msg);
     if(flags & kisside.MessageBox.FLAG_INFO)
@@ -52,7 +52,7 @@ qx.Class.define("kisside.MessageBox",
     dialogPane.add(atom);
 
     var buttonPane = new qx.ui.container.Composite();
-    var layout = new qx.ui.layout.HBox();
+    var layout = new qx.ui.layout.HBox(10);
     layout.setAlignX("right");
     buttonPane.setLayout(layout);
     if(flags & kisside.MessageBox.FLAG_OK || flags & kisside.MessageBox.FLAG_OK_CANCEL)
@@ -61,7 +61,12 @@ qx.Class.define("kisside.MessageBox",
       okButton.addListener("execute", function() {
         this.close();
         if(callback)
-          callback(kisside.MessageBox.RESP_OK);
+        {
+          if(context)
+            callback.call(context, kisside.MessageBox.RESP_OK);
+          else
+            callback(kisside.MessageBox.RESP_OK);
+        }
       }, this);
       this.addListener("keypress", function(e) { if(e.getKeyIdentifier() == "Enter") okButton.execute(); }, this);
       buttonPane.add(okButton);
@@ -72,7 +77,12 @@ qx.Class.define("kisside.MessageBox",
       cancelButton.addListener("execute", function() {
         this.close();
         if(callback)
-          callback(kisside.MessageBox.RESP_CANCEL);
+        {
+          if(context)
+            callback.call(context, kisside.MessageBox.RESP_CANCEL);
+          else
+            callback(kisside.MessageBox.RESP_CANCEL);
+        }
       }, this);
       buttonPane.add(cancelButton);
     }
@@ -82,7 +92,12 @@ qx.Class.define("kisside.MessageBox",
       yesButton.addListener("execute", function() {
         this.close();
         if(callback)
-          callback(kisside.MessageBox.RESP_YES);
+        {
+          if(context)
+            callback.call(context, kisside.MessageBox.RESP_YES);
+          else
+            callback(kisside.MessageBox.RESP_YES);
+        }
       }, this);
       this.addListener("keypress", function(e) { if(e.getKeyIdentifier() == "Enter") yesButton.execute(); }, this);
       buttonPane.add(yesButton);
@@ -90,7 +105,12 @@ qx.Class.define("kisside.MessageBox",
       noButton.addListener("execute", function() {
         this.close();
         if(callback)
-          callback(kisside.MessageBox.RESP_NO);
+        {
+          if(context)
+            callback.call(context, kisside.MessageBox.RESP_NO);
+          else
+            callback(kisside.MessageBox.RESP_NO);
+        }
       }, this);
       buttonPane.add(noButton);
     }
