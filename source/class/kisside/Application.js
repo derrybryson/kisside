@@ -56,6 +56,7 @@ qx.Class.define("kisside.Application",
     __fsPane : null,
     __fsTree : null,
     __fsClipboard : null,
+    __uploadDialog : null,
 
     /**
      * This method contains the initial application code and gets called 
@@ -237,6 +238,45 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __onDoNewFolderCmd : function(result, exc, filename, basedir, path)
+    {
+      this.debug("__onDoNewFolderCmd: result = " + JSON.stringify(result) + ", exc = " + JSON.stringify(exc));
+      if(exc === null)
+      {
+        window.result = result;
+        this.__refreshFSTreeSelected();
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Unable to create new folder: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+      }
+    },
+    
+    __onDoNewFolderCmdPrompt : function(basedir, path, filename)
+    {
+      this.debug("1");
+      this.getFsRpc().mkdir(basedir, path + "/" + filename, function(result, exc) { this.debug("2"); this.__onDoNewFolderCmd(result, exc, filename, basedir, path); }, this);
+    },
+    
+    __doNewFolderCmd : function()
+    {
+      var selection = this.__fsTree.getSelection(); 
+      if(selection && selection.length > 0)
+      {
+        var items = selection.toArray();
+        var item = items[0];
+        if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
+        {
+          var d = new kisside.PromptDialog("New Folder Name", "Enter name for new folder:", '', 1024, 200, function(text) { this.__onDoNewFolderCmdPrompt(item.getBasedir(), item.getPath(), text); }, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
+        }
+      }
+    },
+    
     __onDoOpenCmd : function(result, exc, filename, path, basedir)
     {
       if(exc === null)
@@ -369,15 +409,12 @@ qx.Class.define("kisside.Application",
     
     __doSaveAsCmd : function()
     {
-      alert('shit');
-      this.debug("fuck");
       var page = this.__getSelectedPage();
       if(page)
       {
         var editor = page.getEditor();
         if(editor)
         {
-          this.debug("1");
           var d = new kisside.PromptDialog("Save File As", "Enter new name for file:", page.getFilename(), 1024, 200, function(text) { this.__onDoSaveAsCmd(text, page); }, this);
           this.getRoot().add(d, {left:20, top:20});
           d.center();
@@ -387,7 +424,7 @@ qx.Class.define("kisside.Application",
     
     __doCopy : function()
     {
-      var selection = this.__fsTree.getSelection.toArray();
+      var selection = this.__fsTree.getSelection().toArray();
       if(selection.length > 0)
       {
         var item = selection[0];
@@ -398,6 +435,100 @@ qx.Class.define("kisside.Application",
     __doPaste : function()
     {
       
+    },
+    
+    closeUploadDialog : function()
+    {
+      if(this.__uploadDialog)
+      {
+        this.__uploadDialog.close();
+        this.__uploadDialog = null;
+        this.__refreshFSTreeSelected();
+      }
+    },
+    
+    __doUpload : function()
+    {
+      var selection = this.__fsTree.getSelection().toArray();
+      if(selection.length > 0)
+      {
+        var item = selection[0];
+        this.__uploadDialog = new kisside.UploadDialog(this, this.getAuthToken(), item.getBasedir(), item.getPath());
+        this.getRoot().add(this.__uploadDialog, {left:20, top:20});
+        this.__uploadDialog.center();
+      }
+    },
+    
+    __onDelete : function(result, exc)
+    {
+      if(exc === null)
+      {
+        window.result = result;
+        var selection = this.__fsTree.getSelection().toArray();
+        if(selection.length > 0)
+        {
+          var item = selection[0];
+          var x = this.__getItemParentForPath(item.getBasedir(), item.getPath());
+          this.debug("x = " + JSON.stringify(x));
+          if(x)
+            this.__refreshFSTreeItem(x.parent);
+        }
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Unable to delete file/folder: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+      }
+    },
+    
+    __onDeleteConfirm : function(resp)
+    {
+      this.debug("__onDeleteConfirm: resp = " + resp + ", kisside.FSRpc.RESP_OK = " + kisside.FSRpc.RESP_OK);
+      if(resp == kisside.MessageBox.RESP_OK)
+      {
+        var selection = this.__fsTree.getSelection().toArray();
+        this.debug("got OK");
+        if(selection.length > 0)
+        {
+          var item = selection[0];
+          this.debug("deleting " + item.getLabel());
+          if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
+          {
+            this.debug("delete file " + item.getPath());
+            this.getFsRpc().unlink(item.getBasedir(), item.getPath(), this.__onDelete, this);
+          }
+          else if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
+          {
+            this.debug("delete folder " + item.getPath());
+            this.getFsRpc().rmdir(item.getBasedir(), item.getPath(), this.__onDelete, this);
+          }
+        }
+      }
+    },
+    
+    __doDeleteCmd : function()
+    {
+      var selection = this.__fsTree.getSelection().toArray();
+      if(selection.length > 0)
+      {
+        var item = selection[0];
+        if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
+        {
+          var mb = new kisside.MessageBox(this, "Confirm", "Delete file " + item.getLabel() + "?", 
+                                           kisside.MessageBox.FLAG_QUESTION | kisside.MessageBox.FLAG_OK_CANCEL, this.__onDeleteConfirm, this);
+          this.getRoot().add(mb, {left:20, top:20});
+          mb.center();
+        }
+        else if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
+        {
+          var mb = new kisside.MessageBox(this, "Confirm", "Delete folder " + item.getLabel() + "?", 
+                                           kisside.MessageBox.FLAG_QUESTION | kisside.MessageBox.FLAG_OK_CANCEL, this.__onDeleteConfirm, this);
+          this.getRoot().add(mb, {left:20, top:20});
+          mb.center();
+        }
+      }
     },
     
     __onFSTreeChangeSelection : function(e)
@@ -413,6 +544,7 @@ qx.Class.define("kisside.Application",
       this.__cloneCmd.setEnabled(false);
       this.__copyCmd.setEnabled(this.__fsTree.getSelection().length > 0);
       this.__pasteCmd.setEnabled(false);
+      this.__deleteCmd.setEnabled(false);
       
       if(selection && selection.length > 0)
       {
@@ -423,13 +555,15 @@ qx.Class.define("kisside.Application",
         {
           this.__openCmd.setEnabled(true);
           this.__cloneCmd.setEnabled(true);
+          this.__deleteCmd.setEnabled(true);
         }
         else
         {
           this.__newFileCmd.setEnabled(true);
           this.__newFolderCmd.setEnabled(true);
-          this.__uploadCmd.setEnabled(true);
           this.__pasteCmd.setEnabled(this.__fsClipboard.length > 0);
+          this.__uploadCmd.setEnabled(true);
+          this.__deleteCmd.setEnabled(true);
         }
       }
     },
@@ -497,26 +631,36 @@ qx.Class.define("kisside.Application",
     {
       if(!curnode)
       {
-        curnode = this.__fsTree.getRoot();
-        if(curnode && curnode.hasChildren())
+        curnode = this.__fsTree.getModel();
+        if(curnode && curnode.getChildren().length)
         {
           var children = curnode.getChildren().toArray();
           for(var i = 0; i < children.length; i++)
             if(children[i].getBasedir() == basedir)
+            {
+              this.debug("got basedir " + children[i].getBasedir());
               return this.__getItemParentForPath(basedir, path, curnode);
+            }
         }
       }
       else
       {
         var children = curnode.getChildren().toArray();
+        window.children = children;
         for(var i = 0; i < children.length; i++)
         {
-          if(children[i].hasChildren() && path.startsWidth(children[i].getPath()))
-          {
-            return this.__getItemParentForPath(basedir, path, children[i]);
-          }
-          else if(children[i].getPath() == path)
+          if("getPath" in children[i])
+            this.debug("checking path " + children[i].getPath() + " against " + path);
+          else
+            this.debug("checking " + children[i].getLabel() + " against " + path);
+          if("getPath" in children[i] && children[i].getPath() == path)
             return { parent : curnode, item : children[i] };
+          else if("getChildren" in children[i] && children[i].getChildren().length && path.startsWith(children[i].getPath()))
+          {
+            var retval = this.__getItemParentForPath(basedir, path, children[i]);
+            if(retval)
+              return retval;
+          }
         }
       }
       return null;
@@ -641,14 +785,14 @@ qx.Class.define("kisside.Application",
       this.__newFolderCmd = new qx.ui.command.Command("Alt+N");
       this.__newFolderCmd.setLabel("New Folder");
       this.__newFolderCmd.setIcon("icon/16/actions/folder-new.png")
-      this.__newFolderCmd.addListener("execute", this.__debugCommand);
+      this.__newFolderCmd.addListener("execute", this.__doNewFolderCmd, this);
       this.__newFolderCmd.setToolTipText("New Folder");
       this.__newFolderCmd.setEnabled(false);
 
       this.__deleteCmd = new qx.ui.command.Command("");
       this.__deleteCmd.setLabel("Delete");
       this.__deleteCmd.setIcon("icon/16/places/user-trash.png")
-      this.__deleteCmd.addListener("execute", this.__debugCommand);
+      this.__deleteCmd.addListener("execute", this.__doDeleteCmd, this);
       this.__deleteCmd.setToolTipText("Delete File or Folder");
       this.__deleteCmd.setEnabled(false);
 
@@ -690,7 +834,7 @@ qx.Class.define("kisside.Application",
       this.__uploadCmd = new qx.ui.command.Command("Ctrl+U");
       this.__uploadCmd.setLabel("Upload File");
       this.__uploadCmd.setIcon("icon/16/actions/go-up.png");
-      this.__uploadCmd.addListener("execute", this.__debugCommand);
+      this.__uploadCmd.addListener("execute", this.__doUpload, this);
       this.__uploadCmd.setToolTipText("Upload File");
       this.__uploadCmd.setEnabled(false);
 

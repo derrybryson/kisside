@@ -3,8 +3,9 @@
  *
  * @asset(kisside/*)
  * @asset(qx/icon/${qx.icontheme}/32/status/*)
- * @asset(qx/icon/${qx.icontheme}/16/actions/dialog-ok)
- * @asset(qx/icon/${qx.icontheme}/16/actions/dialog-close)
+ * @asset(qx/icon/${qx.icontheme}/16/actions/dialog-ok.png)
+ * @asset(qx/icon/${qx.icontheme}/16/actions/dialog-close.png)
+ * @asset(qx/icon/${qx.icontheme}/32/actions/help-faq.png)
  * 
  * @lint ignoreDeprecated(alert)
  */
@@ -21,6 +22,7 @@ qx.Class.define("kisside.MessageBox",
     FLAG_OK : 8,
     FLAG_OK_CANCEL : 16,
     FLAG_YES_NO : 32,
+    FLAG_QUESTION : 64,
 
     // response result codes
     RESP_CANCEL : 0,
@@ -50,6 +52,8 @@ qx.Class.define("kisside.MessageBox",
       atom.setIcon("icon/32/status/dialog-warning.png");
     else if(flags & kisside.MessageBox.FLAG_ERROR)
       atom.setIcon("icon/32/status/dialog-error.png");
+    else if(flags & kisside.MessageBox.FLAG_QUESTION)
+      atom.setIcon("icon/32/actions/help-faq.png");
     dialogPane.add(atom);
 
     var buttonPane = new qx.ui.container.Composite();

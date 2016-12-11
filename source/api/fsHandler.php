@@ -166,7 +166,7 @@ class fsHandler extends kisshandler
     if($this->checkUserAuth($params["authtoken"]))
     {
       if(array_key_exists($params["basedir"], $BASE_DIRS))
-        return $this->newResp(mkdir($BASE_DIRS[$params["basedir"]] . $params["path"]), null, $params["id"]);
+        return $this->newResp(mkdir($BASE_DIRS[$params["basedir"]] . $params["path"]), null, $req["id"]);
       else
         return $this->newResp(null, $this->newError(fsHandler::ERR_INVALID_BASEDIR, "Invalid basedir '{$params["basedir"]}'"), $req["id"]);
     }
@@ -182,7 +182,7 @@ class fsHandler extends kisshandler
     if(!$this->checkParams($params, array("authtoken", "basedir", "path")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
-    if(!$req["basedir"] || !$req["path"] || !$this->validPath($req["path"]))
+    if(!$params["basedir"] || !$params["path"] || !$this->validPath($params["path"]))
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))
     {
@@ -203,7 +203,7 @@ class fsHandler extends kisshandler
     if(!$this->checkParams($params, array("authtoken", "basedir", "oldpath", "newpath")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
-    if(!$params["basedir"] == null || !$params["oldpath"] || !$params["newpath"] || !$this->validPath($params["oldpath"]) || !$this->validPath($params["newpath"]))
+    if(!$params["basedir"] || !$params["oldpath"] || !$params["newpath"] || !$this->validPath($params["oldpath"]) || !$this->validPath($params["newpath"]))
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))
     {
@@ -224,7 +224,7 @@ class fsHandler extends kisshandler
     if(!$this->checkParams($params, array("authtoken", "basedir", "path")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
-    if(!$params["basedir"] == null || !$params["path"] || !$this->validPath($params["path"]))
+    if(!$params["basedir"] || !$params["path"] || !$this->validPath($params["path"]))
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))
     {

@@ -9,9 +9,7 @@ try
     include $class_name . '.php';
   });
 
-  $db = new PDO("sqlite:" . DATABASE_FILENAME);
-  $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-  $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+  require_once("db.php");
 
   error_log("method = {$_SERVER['REQUEST_METHOD']}");
   $request = file_get_contents('php://input');

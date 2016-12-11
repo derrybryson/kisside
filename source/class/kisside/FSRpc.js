@@ -86,7 +86,7 @@ qx.Class.define("kisside.FSRpc",
     
     unlink : function(basedir, path, callback, context)
     {
-      this.__call(callback, "rename", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
+      this.__call(callback, "unlink", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
     read : function(basedir, path, callback, context)
