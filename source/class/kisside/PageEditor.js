@@ -17,6 +17,7 @@ qx.Class.define("kisside.PageEditor",
     this.setStat(stat);
     this.setLayout(new qx.ui.layout.VBox());
     this.getChildControl("button").setToolTipText(basedir + "/" + path); 
+    this.getChildControl("button").getChildControl("close-button").addListener("execute", this.__onClose, this); 
     this.setShowCloseButton(true);
     var editor = new kisside.Editor();
     this.setEditor(editor);
@@ -37,7 +38,7 @@ qx.Class.define("kisside.PageEditor",
   properties :
   {
     "changed" : { init : false, apply : "__applyChanged" },
-    "filename" : { nullable : true, init : null },
+    "filename" : { nullable : true, init : null, apply : "__applyFilename" },
     "basedir" : { nullable : true, init : null },
     "path" : { nullable : true, init : null },
     "stat" : { nullable : true, init : null },
@@ -46,6 +47,8 @@ qx.Class.define("kisside.PageEditor",
   
   members : 
   {
+    __linkCount : 0,
+    
     __applyChanged : function(value)
     {
       this.debug("__applyChanged, value = " + value);
@@ -57,6 +60,40 @@ qx.Class.define("kisside.PageEditor",
       }
       else if(this.getIcon() !== '')
         this.setIcon('');
+    }, 
+    
+    __applyFilename : function(value)
+    {
+      if(this.getPath())
+      {
+        var parts = this.getPath().split('/');
+        parts[parts.length - 1] = value;
+        var path = parts.join('/');
+        this.setPath(path);
+        this.getChildControl("button").setToolTipText(this.getBasedir() + "/" + path); 
+      }
+      this.setLabel(value);
+    },
+    
+    __onClose : function(e)
+    {
+//      this.debug("PageEditor.__onClose");
+    },
+    
+    link : function()
+    {
+      this.__linkCount++;
+    },
+
+    unlink : function()
+    {
+      if(this.__linkCount)
+        this.__linkCount--;
+    },
+
+    canClose : function()
+    {
+      return this.__linkCount === 0;
     }
   }
 });

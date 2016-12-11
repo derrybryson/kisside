@@ -20,7 +20,7 @@ qx.$$g = {}
 
 qx.$$loader = {
   parts : {"boot":[0]},
-  packages : {"0":{"uris":["__out__:kisside.103e8d44e653.js","kisside:kisside/Application.js","kisside:kisside/KissRpc.js","__out__:kisside.4f7f05583656.js","kisside:kisside/UserRpc.js","kisside:kisside/FSRpc.js","__out__:kisside.2a5dc636607e.js","kisside:kisside/MessageBox.js","kisside:kisside/SignInDialog.js","__out__:kisside.5031f6cc63ef.js","kisside:kisside/PageEditor.js","kisside:kisside/Editor.js","__out__:kisside.7fcbce197e40.js"]}},
+  packages : {"0":{"uris":["__out__:kisside.103e8d44e653.js","kisside:kisside/Application.js","kisside:kisside/KissRpc.js","__out__:kisside.4f7f05583656.js","kisside:kisside/UserRpc.js","kisside:kisside/FSRpc.js","__out__:kisside.2a5dc636607e.js","kisside:kisside/MessageBox.js","kisside:kisside/SignInDialog.js","__out__:kisside.5031f6cc63ef.js","kisside:kisside/PageEditor.js","kisside:kisside/Editor.js","kisside:kisside/PromptDialog.js","__out__:kisside.fede3e3c62a5.js","kisside:kisside/EditorTabView.js","__out__:kisside.b01b23207c18.js"]}},
   urisBefore : [],
   cssBefore : [],
   boot : "boot",

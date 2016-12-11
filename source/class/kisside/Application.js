@@ -55,6 +55,7 @@ qx.Class.define("kisside.Application",
     __curPage : null,
     __fsPane : null,
     __fsTree : null,
+    __fsClipboard : null,
 
     /**
      * This method contains the initial application code and gets called 
@@ -85,6 +86,8 @@ qx.Class.define("kisside.Application",
         qx.log.appender.Console;
       }
 
+      this.__fsClipboard = [];
+      
       this.__makeMain();
       this.__checkSignedIn();
     },
@@ -213,6 +216,11 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __onDoNewCmdPrompt : function(basedir, path, filename)
+    {
+      this.getFsRpc().write(basedir, path + "/" + filename, "", 0, 0, function(result, exc) { this.__onDoNewCmd(result, exc, filename, basedir, path); }, this);
+    },
+    
     __doNewCmd : function()
     {
       var selection = this.__fsTree.getSelection(); 
@@ -222,8 +230,9 @@ qx.Class.define("kisside.Application",
         var item = items[0];
         if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
         {
-          var filename = "NewFile.js";
-          this.getFsRpc().write(item.getBasedir(), item.getPath() + "/" + filename, "", 0, 0, function(result, exc) { this.__onDoNewCmd(result, exc, filename, item.getBasedir(), item.getPath()); }, this);
+          var d = new kisside.PromptDialog("New File Name", "Enter name for new file:", '', 1024, 200, function(text) { this.__onDoNewCmdPrompt(item.getBasedir(), item.getPath(), text); }, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
         }
       }
     },
@@ -272,7 +281,11 @@ qx.Class.define("kisside.Application",
         var item = items[0];
         if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
         {
-          this.getFsRpc().read(item.getBasedir(), item.getPath(), function(result, exc) { this.__onDoOpenCmd(result, exc, item.getLabel(), item.getPath(), item.getBasedir()); }, this);
+          var page = this.__getPageForPath(item.getBasedir(), item.getPath());
+          if(page)
+            this.__tabView.setSelection([page]);
+          else
+            this.getFsRpc().read(item.getBasedir(), item.getPath(), function(result, exc) { this.__onDoOpenCmd(result, exc, item.getLabel(), item.getPath(), item.getBasedir()); }, this);
         }
       }
     },
@@ -293,12 +306,16 @@ qx.Class.define("kisside.Application",
       }
     },
     
-    __onDoSaveCmd : function(result, exc, page)
+    __onDoSaveCmd : function(result, exc, page, newFilename)
     {
       if(exc === null)
       {
         window.result = result;
         page.setChanged(false);
+        if(newFilename)
+        {
+          page.setFilename(newFilename);
+        }
         page.setStat(result.stat);
       }
       else
@@ -334,6 +351,55 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __onDoSaveAsCmd : function(filename, page)
+    {
+      if(page)
+      {
+        var editor = page.getEditor();
+        if(editor)
+        {
+          var parts = page.getPath().split('/');
+          parts[parts.length - 1] = filename;
+          var path = parts.join('/');
+          this.debug("new path = " + path);
+          this.getFsRpc().write(page.getBasedir(), path, editor.getText(), page.getStat().mtime, kisside.FSRpc.WRITE_FLAG_OVERWRITE, function(result, exc) { this.__onDoSaveCmd(result, exc, page, filename); }, this);
+        }
+      }
+    },
+    
+    __doSaveAsCmd : function()
+    {
+      alert('shit');
+      this.debug("fuck");
+      var page = this.__getSelectedPage();
+      if(page)
+      {
+        var editor = page.getEditor();
+        if(editor)
+        {
+          this.debug("1");
+          var d = new kisside.PromptDialog("Save File As", "Enter new name for file:", page.getFilename(), 1024, 200, function(text) { this.__onDoSaveAsCmd(text, page); }, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
+        }
+      }
+    },
+    
+    __doCopy : function()
+    {
+      var selection = this.__fsTree.getSelection.toArray();
+      if(selection.length > 0)
+      {
+        var item = selection[0];
+        this.__fsClipboard = [ { basedir : item.getBasedir(), path : item.getPath(), filename : item.getFilename() }];
+      }
+    },
+    
+    __doPaste : function()
+    {
+      
+    },
+    
     __onFSTreeChangeSelection : function(e)
     {
       var selection = this.__fsTree.getSelection(); 
@@ -344,6 +410,9 @@ qx.Class.define("kisside.Application",
       this.__newFolderCmd.setEnabled(false);
       this.__openCmd.setEnabled(false);
       this.__uploadCmd.setEnabled(false);
+      this.__cloneCmd.setEnabled(false);
+      this.__copyCmd.setEnabled(this.__fsTree.getSelection().length > 0);
+      this.__pasteCmd.setEnabled(false);
       
       if(selection && selection.length > 0)
       {
@@ -353,12 +422,14 @@ qx.Class.define("kisside.Application",
         if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
         {
           this.__openCmd.setEnabled(true);
+          this.__cloneCmd.setEnabled(true);
         }
         else
         {
           this.__newFileCmd.setEnabled(true);
           this.__newFolderCmd.setEnabled(true);
           this.__uploadCmd.setEnabled(true);
+          this.__pasteCmd.setEnabled(this.__fsClipboard.length > 0);
         }
       }
     },
@@ -397,24 +468,98 @@ qx.Class.define("kisside.Application",
       {
         var items = selection.toArray();
         var item = items[0];
-        this.debug("filename = " + item.getLabel() + ", mode = " + item.getStat().getMode());
-        if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
+        this.__refreshFSTreeItem(item);
+      }
+    },
+    
+    __refreshFSTreeItem : function(item)
+    {
+      this.debug("__refreshFSTreeItem");
+      this.debug("filename = " + item.getLabel() + ", mode = " + item.getStat().getMode());
+      if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
+      {
+        this.debug("is a folder");
+        item.setLoaded(false);
+        var node = [{
+          label: "Loading",
+          icon: "loading"
+        }];
+        var model = qx.data.marshal.Json.createModel(node, true);
+        item.setChildren(model);
+        this.__fsTree.closeNode(item);
+        this.__fsTree.openNode(item);
+      }
+      else
+        this.debug("not a folder");
+    },
+    
+    __getItemParentForPath : function(basedir, path, curnode)
+    {
+      if(!curnode)
+      {
+        curnode = this.__fsTree.getRoot();
+        if(curnode && curnode.hasChildren())
         {
-          this.debug("is a folder");
-          item.setLoaded(false);
-          var node = [{
-            label: "Loading",
-            icon: "loading"
-          }];
-          var model = qx.data.marshal.Json.createModel(node, true);
-          item.setChildren(model);
-          this.__fsTree.closeNode(item);
-          this.__fsTree.openNode(item);
+          var children = curnode.getChildren().toArray();
+          for(var i = 0; i < children.length; i++)
+            if(children[i].getBasedir() == basedir)
+              return this.__getItemParentForPath(basedir, path, curnode);
+        }
+      }
+      else
+      {
+        var children = curnode.getChildren().toArray();
+        for(var i = 0; i < children.length; i++)
+        {
+          if(children[i].hasChildren() && path.startsWidth(children[i].getPath()))
+          {
+            return this.__getItemParentForPath(basedir, path, children[i]);
+          }
+          else if(children[i].getPath() == path)
+            return { parent : curnode, item : children[i] };
+        }
+      }
+      return null;
+    },
+    
+    __onTabViewSelect : function(e)
+    {
+      this.__curPage = this.__getSelectedPage(); 
+      if(this.__curPage && this.__curPage.getChildren() && this.__curPage.getChildren()[0]) 
+      {
+        this.__saveCmd.setEnabled(true);
+        this.__saveAsCmd.setEnabled(true);
+        this.__curPage.getChildren()[0].focus(); 
+      }
+      else
+      {
+        this.__saveCmd.setEnabled(false);
+        this.__saveAsCmd.setEnabled(false);
+      }
+    },
+    
+    __onPageClose : function(e)
+    {
+//      this.debug("__onPageClose");
+//      window.e = e;
+      var page = e.getData();
+      if(page.canClose())
+      {
+        if(page.getChanged())
+        {
+          var mb = new kisside.MessageBox(this, "Confirm", "Document has been modified, close without saving?", 
+                                           kisside.MessageBox.FLAG_WARNING | kisside.MessageBox.FLAG_OK_CANCEL, function(resp) {
+            if(resp == kisside.MessageBox.RESP_OK)
+              this.__tabView.remove(page);
+          }, this);
+          this.getRoot().add(mb, {left:20, top:20});
+          mb.center();
+          mb.focus();
+          
         }
         else
-          this.debug("not a folder");
+          this.__tabView.remove(page);
       }
-
     },
     
     __makeMain : function()
@@ -442,28 +587,11 @@ qx.Class.define("kisside.Application",
 //        maxWidth : 450,
         decorator : "main"
       });
-      this.__tabView = new qx.ui.tabview.TabView();
-      var self = this;
-      this.__tabView.addListener("changeSelection", function(e) { this.__curPage = self.__getSelectedPage(); if(this.__curPage.getChildren()[0]) this.__curPage.getChildren()[0].focus(); }, this);
+      this.__tabView = new kisside.EditorTabView();
+      this.__tabView.addListener("page-close", this.__onPageClose, this);
+      this.__tabView.addListener("changeSelection", this.__onTabViewSelect, this);
 
       this.__tabView.setContentPadding(0, 0, 0, 0);
-/*      
-      for (var i=1; i<=20; i++)
-      {
-        var page = new qx.ui.tabview.Page("File #" + i);
-        page.setLayout(new qx.ui.layout.VBox());
-        page.getChildControl("button").setToolTipText("Hi there!"); 
-        page.setShowCloseButton(true);
-        var editor = new kisside.Editor();
-//        editor.addListener("change", function() { self.debug("changed"); if(self.__curPage.getLabel()[0] != '*') self.__curPage.setLabel('*' + self.__curPage.getLabel()); });
-        editor.addListener("change", function() { self.debug("changed"); if(self.__curPage.getIcon() === '') self.__curPage.setIcon("icon/16/emblems/emblem-important.png"); });
-        editor.setText("// This is file" + i + ".\n");
-//        page.add(new qx.ui.basic.Label("File #" + i + " with close button."));
-        page.add(editor, { flex: 1 });
-        page.addListener("focus", function() { editor.focus(); });
-        this.__tabView.add(page);
-      }
-*/      
       editorPane.add(this.__tabView);
 
       var pane = new qx.ui.splitpane.Pane("horizontal");
@@ -472,30 +600,23 @@ qx.Class.define("kisside.Application",
       this.__main.add(pane, { flex: 1 });
 
       this.getRoot().add(this.__main, {edge : 0});
-
-/*
-      var rpc = new qx.io.remote.Rpc("api/index.php", "user");
-      
-      // asynchronous call
-      var handler = function(result, exc) {
-        if (exc == null) 
-        {
-          alert("Result of async call: " + result);
-        } 
-        else 
-        {
-          alert("Exception during async call: " + exc);
-        }
-      };
-      rpc.callAsync(handler, "issignedin", { "authtoken" : "" });
-*/      
     },
 
     __getSelectedPage : function()
     {
       var sel = this.__tabView.getSelection();
       if(sel)
+      {
         return sel[0];
+      }
+      return null;
+    },
+    
+    __getPageForPath : function(basedir, path)
+    {
+      var matches = this.__tabView.getChildren().filter(function(item, index, array) { return item.getBasedir() == basedir && item.getPath() == path; }, this);
+      if(matches.length > 0)
+        return matches[0];
       return null;
     },
 
@@ -515,65 +636,116 @@ qx.Class.define("kisside.Application",
       this.__newFileCmd.setIcon("icon/16/actions/document-new.png")
       this.__newFileCmd.addListener("execute", this.__doNewCmd, this);
       this.__newFileCmd.setToolTipText("New File");
+      this.__newFileCmd.setEnabled(false);
 
       this.__newFolderCmd = new qx.ui.command.Command("Alt+N");
       this.__newFolderCmd.setLabel("New Folder");
       this.__newFolderCmd.setIcon("icon/16/actions/folder-new.png")
       this.__newFolderCmd.addListener("execute", this.__debugCommand);
       this.__newFolderCmd.setToolTipText("New Folder");
+      this.__newFolderCmd.setEnabled(false);
 
       this.__deleteCmd = new qx.ui.command.Command("");
       this.__deleteCmd.setLabel("Delete");
       this.__deleteCmd.setIcon("icon/16/places/user-trash.png")
       this.__deleteCmd.addListener("execute", this.__debugCommand);
       this.__deleteCmd.setToolTipText("Delete File or Folder");
+      this.__deleteCmd.setEnabled(false);
 
       this.__openCmd = new qx.ui.command.Command("Ctrl+O");
       this.__openCmd.setLabel("Open File");
       this.__openCmd.setIcon("icon/16/actions/document-open.png");
       this.__openCmd.addListener("execute", this.__doOpenCmd, this);
       this.__openCmd.setToolTipText("Open File");
+      this.__openCmd.setEnabled(false);
 
       this.__closeCmd = new qx.ui.command.Command("Ctrl+W");
       this.__closeCmd.setLabel("Close File");
 //      this.__closeCmd.setIcon("icon/16/actions/document-open.png");
       this.__closeCmd.addListener("execute", this.__debugCommand);
       this.__closeCmd.setToolTipText("Close File");
+      this.__closeCmd.setEnabled(false);
 
       this.__closeAllCmd = new qx.ui.command.Command("");
       this.__closeAllCmd.setLabel("Close All Files");
 //      this.__closeAllCmd.setIcon("icon/16/actions/document-open.png");
       this.__closeAllCmd.addListener("execute", this.__debugCommand);
       this.__closeAllCmd.setToolTipText("Close All Files");
+      this.__closeAllCmd.setEnabled(false);
 
       this.__saveCmd = new qx.ui.command.Command("Ctrl+S");
       this.__saveCmd.setLabel("Save File");
       this.__saveCmd.setIcon("icon/16/actions/document-save.png");
       this.__saveCmd.addListener("execute", this.__doSaveCmd, this);
       this.__saveCmd.setToolTipText("Save File");
+      this.__saveCmd.setEnabled(false);
 
       this.__saveAsCmd = new qx.ui.command.Command("Ctrl+Alt+S");
       this.__saveAsCmd.setLabel("Save File As");
       this.__saveAsCmd.setIcon("icon/16/actions/document-save-as.png");
-      this.__saveAsCmd.addListener("execute", this.__debugCommand);
+      this.__saveAsCmd.addListener("execute", this.__doSaveAsCmd, this);
       this.__saveAsCmd.setToolTipText("Save File As");
+      this.__saveAsCmd.setEnabled(false);
 
       this.__uploadCmd = new qx.ui.command.Command("Ctrl+U");
       this.__uploadCmd.setLabel("Upload File");
       this.__uploadCmd.setIcon("icon/16/actions/go-up.png");
       this.__uploadCmd.addListener("execute", this.__debugCommand);
       this.__uploadCmd.setToolTipText("Upload File");
+      this.__uploadCmd.setEnabled(false);
+
+      this.__renameCmd = new qx.ui.command.Command("");
+      this.__renameCmd.setLabel("Rename...");
+//      this.__renameCmd.setIcon("icon/16/actions/go-up.png");
+      this.__renameCmd.addListener("execute", this.__debugCommand);
+      this.__renameCmd.setToolTipText("Rename...");
+
+      this.__cloneCmd = new qx.ui.command.Command("");
+      this.__cloneCmd.setLabel("Clone");
+//      this.__cloneCmd.setIcon("icon/16/actions/go-up.png");
+      this.__cloneCmd.addListener("execute", this.__debugCommand);
+      this.__cloneCmd.setToolTipText("Clone");
+
+      this.__copyCmd = new qx.ui.command.Command("");
+      this.__copyCmd.setLabel("Copy");
+//      this.__cloneCmd.setIcon("icon/16/actions/go-up.png");
+      this.__copyCmd.addListener("execute", this.__doCopy, this);
+      this.__copyCmd.setToolTipText("Copy");
+
+      this.__pasteCmd = new qx.ui.command.Command("");
+      this.__pasteCmd.setLabel("Paste");
+//      this.__cloneCmd.setIcon("icon/16/actions/go-up.png");
+      this.__pasteCmd.addListener("execute", this.__doPaste, this);
+      this.__pasteCmd.setToolTipText("Paste");
 
       this.__undoCmd = new qx.ui.command.Command("Ctrl+Z");
       this.__undoCmd.setLabel("Undo Edit");
       this.__undoCmd.setIcon("icon/16/actions/edit-undo.png")
-      this.__undoCmd.addListener("execute", this.__debugCommand);
+      this.__undoCmd.addListener("execute", function() 
+      {       
+        var page = this.__getSelectedPage();
+        if(page)
+        {
+          var editor = page.getEditor();
+          if(editor)
+            editor.undo()
+        }
+      }, this);
       this.__undoCmd.setToolTipText("Undo Edit");
 
       this.__redoCmd = new qx.ui.command.Command("Ctrl+Y");
       this.__redoCmd.setLabel("Redo Edit");
       this.__redoCmd.setIcon("icon/16/actions/edit-redo.png")
-      this.__redoCmd.addListener("execute", this.__debugCommand);
+      this.__redoCmd.addListener("execute", function() 
+      {       
+        var page = this.__getSelectedPage();
+        if(page)
+        {
+          var editor = page.getEditor();
+          if(editor)
+            editor.redo()
+        }
+      }, this);
       this.__redoCmd.setToolTipText("Redo Edit");
 
       this.__findCmd = new qx.ui.command.Command("Ctrl+F");
@@ -865,12 +1037,21 @@ qx.Class.define("kisside.Application",
       var deleteButton = new qx.ui.menu.Button("", "", this.__deleteCmd);
       var uploadButton = new qx.ui.menu.Button("", "", this.__uploadCmd);
       var refreshButton = new qx.ui.menu.Button("", "", this.__refreshCmd); 
+      var renameButton = new qx.ui.menu.Button("", "", this.__renameCmd); 
+      var copyButton = new qx.ui.menu.Button("", "", this.__copyCmd); 
+      var pasteButton = new qx.ui.menu.Button("", "", this.__pasteCmd); 
+      var cloneButton = new qx.ui.menu.Button("", "", this.__cloneCmd); 
 
       contextMenu.add(newFileButton); 
       contextMenu.add(newFolderButton); 
       contextMenu.add(openButton); 
       contextMenu.add(deleteButton); 
       contextMenu.add(uploadButton); 
+      contextMenu.add(renameButton); 
+      contextMenu.add(cloneButton); 
+      contextMenu.addSeparator(); 
+      contextMenu.add(copyButton); 
+      contextMenu.add(pasteButton); 
       contextMenu.addSeparator(); 
       contextMenu.add(refreshButton); 
 
@@ -995,6 +1176,8 @@ qx.Class.define("kisside.Application",
       tree.setDelegate(delegate);
       
       tree.setHideRoot(true);
+      tree.setDroppable(true);
+      tree.setDraggable(true);
       
 /*      
       var menu = new qx.ui.menu.Menu;
@@ -1069,13 +1252,19 @@ qx.Class.define("kisside.Application",
       tree.setIconOptions({
         converter : function(value, model)
         {
-          if (value == "default") {
-            if (model.getChildren != null) {
+          if(value == "default") 
+          {
+            if(model.getChildren != null) 
+            {
               return "icon/16/places/folder.png";
-            } else {
+            } 
+            else 
+            {
               return "icon/16/mimetypes/office-document.png";
             }
-          } else {
+          } 
+          else 
+          {
             return "resource/kisside/loading22.gif";
           }
         }
@@ -1092,7 +1281,7 @@ qx.Class.define("kisside.Application",
             converter : function(value, model, source, target)
             {
               var isOpen = target.isOpen();
-              if (isOpen && !value.getLoaded())
+              if(isOpen && !value.getLoaded())
               {
                 value.setLoaded(true);
 

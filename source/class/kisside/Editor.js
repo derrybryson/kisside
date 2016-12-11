@@ -20,10 +20,7 @@ qx.Class.define("kisside.Editor",
 //    this.setDecorator("main");
 
     this.__editor = new qx.ui.core.Widget();
-    this.__editor.addListenerOnce("appear", function() 
-    {
-      this.__onEditorAppear();
-    }, this);
+    this.__editor.addListenerOnce("appear", this.__onEditorAppear, this);
     this.add(this.__editor, { flex : 1 });
 
     this.__posLabel = new qx.ui.basic.Label("").set({ allowGrowX : true });
@@ -428,6 +425,21 @@ qx.Class.define("kisside.Editor",
     findPrev : function()
     {
       this.__ace.execCommand("findprevious");
+    },
+
+    replace : function()
+    {
+      this.__ace.execCommand("replace");
+    },
+
+    undo : function()
+    {
+      this.__ace.execCommand("undo");
+    },
+
+    redo : function()
+    {
+      this.__ace.execCommand("redo");
     }
   }
 });

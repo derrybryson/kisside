@@ -33,6 +33,7 @@ qx.Class.define("kisside.MessageBox",
   {
     this.base(arguments, title);
     this.__app = app;
+    this.__flags = flags;
 
     this.setLayout(new qx.ui.layout.Canvas());
     this.setModal(true);
@@ -68,7 +69,7 @@ qx.Class.define("kisside.MessageBox",
             callback(kisside.MessageBox.RESP_OK);
         }
       }, this);
-      this.addListener("keypress", function(e) { if(e.getKeyIdentifier() == "Enter") okButton.execute(); }, this);
+      this.__okButton = okButton;
       buttonPane.add(okButton);
     }
     if(flags & kisside.MessageBox.FLAG_OK_CANCEL)
@@ -85,6 +86,7 @@ qx.Class.define("kisside.MessageBox",
         }
       }, this);
       buttonPane.add(cancelButton);
+      this.__cancelButton = cancelButton;
     }
     if(flags & kisside.MessageBox.FLAG_YES_NO)
     {
@@ -99,8 +101,8 @@ qx.Class.define("kisside.MessageBox",
             callback(kisside.MessageBox.RESP_YES);
         }
       }, this);
-      this.addListener("keypress", function(e) { if(e.getKeyIdentifier() == "Enter") yesButton.execute(); }, this);
       buttonPane.add(yesButton);
+      this.__okButton = yesButton;
       var noButton = new qx.ui.form.Button("No", "icon/16/actions/dialog-close.png");
       noButton.addListener("execute", function() {
         this.close();
@@ -112,11 +114,15 @@ qx.Class.define("kisside.MessageBox",
             callback(kisside.MessageBox.RESP_NO);
         }
       }, this);
+      this.__cancelButton = noButton;
       buttonPane.add(noButton);
     }
     dialogPane.add(buttonPane);
     this.add(dialogPane, { edge: 20 });
 
+    this.addListener("keypress", this.__onKeypress, this);
+    this.addListenerOnce("appear", this.__onEditorAppear, this);
+    
     this.open();
   },
 
@@ -126,6 +132,35 @@ qx.Class.define("kisside.MessageBox",
 
   members :
   {
-    __app : null
+    __app : null,
+    __flags : 0,
+    __okButton : null,
+    __cancelButton : null,
+    
+    __onEditorAppear : function()
+    {
+      this.focus();
+    },
+    
+    __onKeypress : function(e)
+    {
+      this.debug("onKeypress: " + e.getKeyIdentifier());
+      if(e.getKeyIdentifier() == "Enter") 
+      {
+        if(this.__okButton)
+        {
+          this.__okButton.focus();
+          this.__okButton.execute(); 
+        }
+      }
+      else if(e.getKeyIdentifier() == "Escape")
+      {
+        if(this.__cancelButton)
+        {
+          this.__cancelButton.focus();
+          this.__cancelButton.execute(); 
+        }
+      }
+    }
   }
 });
