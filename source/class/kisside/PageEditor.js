@@ -8,7 +8,7 @@ qx.Class.define("kisside.PageEditor",
 {
   extend : qx.ui.tabview.Page,
 
-  construct : function(filename, basedir, path, stat, contents)
+  construct : function(filename, basedir, path, stat, contents, options)
   {
     this.base(arguments, filename);
     this.setFilename(filename);
@@ -27,6 +27,8 @@ qx.Class.define("kisside.PageEditor",
     var mode = kisside.Editor.getModeForPath(this.getLabel());
     if(mode)
       editor.setMode(mode.mode);
+    if(options)
+      editor.setOptions(options);
     this.add(editor, { flex: 1 });
     this.addListener("focus", function() { this.debug("page focus"); this.__editor.focus(); }, this);
   },

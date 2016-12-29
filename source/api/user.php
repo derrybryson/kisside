@@ -1,5 +1,17 @@
 <?php
 
+function _userEncodeConfig(&$user)
+{
+  if(array_key_exists("config", $user))
+    $user["config"] = json_encode($user["config"]);
+}
+
+function _userDecodeConfig(&$user)
+{
+  if(array_key_exists("config", $user))
+    $user["config"] = json_decode($user["config"]);
+}
+
 function userGet($username)
 {
   global $db;
@@ -9,7 +21,10 @@ function userGet($username)
     $db->beginTransaction();
     $result = $db->query("select * from users where username=" . $db->quote($username));
     if($result)
+    {
       $user = $result->fetch();
+      _userDecodeConfig($user);
+    }
     $db->commit();
   }
   catch(Exception $e)
@@ -29,7 +44,10 @@ function userGetByID($userid)
     $db->beginTransaction();
     $result = $db->query("select * from users where userid=" . $db->quote($userid));
     if($result)
+    {
       $user = $result->fetch();
+      _userDecodeConfig($user);
+    }
     $db->commit();
   }
   catch(Exception $e)
@@ -42,12 +60,12 @@ function userGetByID($userid)
 
 function userAdd($user)
 {
-  global $db;
+  global $db, $DEF_USER_OPTIONS;
   $id = -1;
   try
   {
     $db->beginTransaction();
-    $result = $conn->query("insert into users (username, password, admin) values (" . $db->quote($user["username"]) . ", " . $db->quote(password_hash($user["password"])) . ", " . $db->quote($user["admin"]) . ")");
+    $result = $conn->query("insert into users (username, password, admin, options) values (" . $db->quote($user["username"]) . ", " . $db->quote(password_hash($user["password"])) . ", " . $db->quote($user["admin"]) . ", " . $db->quote(json.encode($DEF_USER_OPTIONS)) . ")");
     if($result)
       $id = $db->lastInsertId();
     $db->commit();
@@ -67,6 +85,7 @@ function userUpdate($userid, $update)
   try
   {
     $set = "";
+    _userEncodeConfig($update);
     foreach($update as $field => $value)
     {
       if($field == "password")

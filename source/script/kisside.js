@@ -20,7 +20,7 @@ qx.$$g = {}
 
 qx.$$loader = {
   parts : {"boot":[0]},
-  packages : {"0":{"uris":["__out__:kisside.7c53be6cc83c.js","kisside:kisside/Application.js","kisside:kisside/KissRpc.js","__out__:kisside.4f7f05583656.js","kisside:kisside/UserRpc.js","kisside:kisside/FSRpc.js","__out__:kisside.2a5dc636607e.js","kisside:kisside/MessageBox.js","kisside:kisside/SignInDialog.js","__out__:kisside.5031f6cc63ef.js","kisside:kisside/PageEditor.js","kisside:kisside/Editor.js","kisside:kisside/PromptDialog.js","kisside:kisside/UploadDialog.js","__out__:kisside.887143056813.js","kisside:kisside/EditorTabView.js","__out__:kisside.b01b23207c18.js"]}},
+  packages : {"0":{"uris":["__out__:kisside.009b948c411f.js","kisside:kisside/Application.js","kisside:kisside/KissRpc.js","__out__:kisside.4f7f05583656.js","kisside:kisside/UserRpc.js","kisside:kisside/FSRpc.js","__out__:kisside.2a5dc636607e.js","kisside:kisside/MessageBox.js","kisside:kisside/SignInDialog.js","__out__:kisside.5031f6cc63ef.js","kisside:kisside/PageEditor.js","kisside:kisside/Editor.js","kisside:kisside/PromptDialog.js","kisside:kisside/UploadDialog.js","__out__:kisside.887143056813.js","kisside:kisside/EditorTabView.js","__out__:kisside.b877af1e6f0a.js","kisside:kisside/EditorDialog.js","__out__:kisside.cdc9abc8a4e1.js"]}},
   urisBefore : [],
   cssBefore : [],
   boot : "boot",

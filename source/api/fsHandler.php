@@ -322,6 +322,59 @@ class fsHandler extends kisshandler
     else
       return $this->newResp(null, $this->newError(KISSService::ERR_NOT_AUTHORIZED, "Not authorized"), $req["id"]);
   }
+  
+  public function method_copy($req)
+  {
+    global $BASE_DIRS;
+
+    $params = $req["params"][0];
+    if(!$this->checkParams($params, array("authtoken", "srcbasedir", "srcpath", "destbasedir", "destpath", "flags")))
+      return $this->newParamErrorResp($req);
+    $this->trimParams($params);
+    if(!$params["srcbasedir"] || !$params["srcpath"] || !$this->validPath($params["srcpath"]) || !$params["destbasedir"] || !$params["destpath"] || !$this->validPath($params["destpath"]))
+      return $this->newParamErrorResp($req);
+    if($this->checkUserAuth($params["authtoken"]))
+    {
+      if(array_key_exists($params["srcbasedir"], $BASE_DIRS) && array_key_exists($params["destbasedir"], $BASE_DIRS))
+      {
+        $fullsrcpath = $BASE_DIRS[$params["srcbasedir"]] . $params["srcpath"];
+        $fulldestpath = $BASE_DIRS[$params["destbasedir"]] . $params["destpath"];
+        if(file_exists($fulldestpath))
+        {
+          $stat = stat($fulldestpath);
+          if($stat["mode"] & fsHandler::S_IFDIR)
+            return $this->newResp(null, $this->newError(fsHandler::ERR_FOLDER_EXISTS, "Folder exists '{$params["destpath"]}'"), $req["id"]);
+          else if($stat["mode"] & fsHandler::S_IFREG)
+          {
+            if(!($params["flags"] & fsHandler::WRITE_FLAG_OVERWRITE))
+              return $this->newResp(null, $this->newError(fsHandler::ERR_FILE_EXISTS, "File exists '{$params["destpath"]}'"), $req["id"]);
+          }  
+          else
+            return $this->newResp(null, $this->newError(fsHandler::ERR_SPECIAL_FILE, "Special file '{$params["destpath"]}'"), $req["id"]);
+        }
+        error_log("temp path = " . $BASE_DIRS[$params["destbasedir"]] . dirname($params["destpath"]));
+        $tmpname = tempnam($BASE_DIRS[$params["destbasedir"]] . dirname($params["destpath"]), "kisside");
+        $result = null;
+        if(copy($fullsrcpath, $tmpname))
+        {
+          chmod($tmpname, DEF_FILE_MODE);
+          if(rename($tmpname, $fulldestpath))
+            $result = array("stat" => stat($fulldestpath));
+        }
+        if(!$result)
+        {
+          unlink($tmpname);
+          return $this->newResp(null, $this->newError(QooxDooRPCHandler::ERR_INTERNAL_ERROR, "Unknown error"), $req["id"]);
+        }
+        else
+          return $this->newResp($result, null, $req["id"]);
+      }
+      else
+        return $this->newResp(null, $this->newError(fsHandler::ERR_INVALID_BASEDIR, "Invalid basedir '{$params["srcbasedir"]}' or '{$params["destbasedir"]}'"), $req["id"]);
+    }
+    else
+      return $this->newResp(null, $this->newError(KISSService::ERR_NOT_AUTHORIZED, "Not authorized"), $req["id"]);
+  }
 }
 
 ?>

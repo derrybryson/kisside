@@ -97,6 +97,11 @@ qx.Class.define("kisside.FSRpc",
     write : function(basedir, path, contents, mtime, flags, callback, context)
     {
       this.__call(callback, "write", { "authtoken" : this.__app.getAuthToken(), "basedir" : basedir, "path" : path, "contents" : contents, "mtime" : mtime, "flags" : flags }, context);
+    },
+    
+    copy : function(srcbasedir, srcpath, destbasedir, destpath, flags, callback, context)
+    {
+      this.__call(callback, "copy", { "authtoken" : this.__app.getAuthToken(), "srcbasedir" : srcbasedir, "srcpath" : srcpath, "destbasedir" : destbasedir, "destpath" : destpath, "flags" : flags }, context);
     }
   }
 });

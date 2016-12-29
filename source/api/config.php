@@ -15,4 +15,19 @@ $BASE_DIRS = array(
 define("DEF_FILE_MODE", 0664);
 define("DEF_DIR_MODE", 0775);
 
+$DEF_GENERAL_OPTIONS = array(
+);
+
+$DEF_EDITOR_OPTIONS = array(
+  "fontSize" => "14px",
+  "softTabs" => true,
+  "tabSize" => 4,
+  "theme" => ""
+);
+
+$DEF_USER_OPTIONS = array(
+  "general" => $DEF_GENERAL_OPTIONS,
+  "editor" => $DEF_EDITOR_OPTIONS
+);
+
 ?>

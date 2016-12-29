@@ -39,7 +39,7 @@ qx.Class.define("kisside.PromptDialog",
     var okButton = new qx.ui.form.Button("Ok", "icon/16/actions/dialog-ok.png");
     buttonPane.add(okButton);
     var cancelButton = new qx.ui.form.Button("Cancel", "icon/16/actions/dialog-cancel.png");
-    buttonPane.add(okButton);
+    buttonPane.add(cancelButton);
     dialogPane.add(buttonPane);
     
     this.add(dialogPane, { edge: 20 });
@@ -65,6 +65,11 @@ qx.Class.define("kisside.PromptDialog",
       {
         okButton.focus();     
         okButton.execute();
+      } 
+      else if(e.getKeyIdentifier() == "Escape") 
+      {
+        cancelButton.focus();     
+        cancelButton.execute();
       } 
     }, this);
 

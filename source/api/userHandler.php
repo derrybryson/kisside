@@ -72,16 +72,16 @@ class userHandler extends KISSHandler
   public function method_update($req)
   {
     $params = $req["params"][0];
-    if(!$this->checkParams($params["params"][0], array("authtoken", "user")))
+    if(!$this->checkParams($params, array("authtoken", "user")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
     if($this->checkUserAuth($params["authtoken"]))
     {
       if($this->user["username"] == $params["user"]["username"] || $this->user["admin"])
       {
-        if(array_key_exists($params["user"]["password"]))
+        if(array_key_exists("password", $params["user"]))
           unset($params["user"]["password"]);
-        userUpdate($user["userid"], $params["user"]);
+        userUpdate($params["user"]["userid"], $params["user"]);
         return $this->newResp(true, null, $req["id"]);
       }
       else

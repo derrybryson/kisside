@@ -7,10 +7,15 @@ qx.Class.define("kisside.Editor",
 {
   extend : qx.ui.container.Composite,
 
-  construct : function()
+  construct : function(options)
   {
     kisside.Editor.__init();
     this.base(arguments);
+    
+    if(options)
+      this.setOptions(options);
+    else
+      this.setOptions(kisside.Editor.__defOptions);
 
     this.setBackgroundColor("white");
 
@@ -45,11 +50,20 @@ qx.Class.define("kisside.Editor",
      "changeSession" : "qx.event.type.Data",
      "copy" : "qx.event.type.Data",
      "focus" : "qx.event.type.Data",
-     "paste" : "qx.event.type.Data"
+     "paste" : "qx.event.type.Data",
+     "appear" : "qx.event.type.Data"
    },   
   
   statics :
   {
+    __defOptions : 
+    {
+      "fontSize" : "14px",
+      "softTabs" : true,
+      "tabSize" : 4,
+      "theme" : ""
+    },
+    
     modes : [],
     
     getModeForPath : function(path) 
@@ -86,6 +100,54 @@ qx.Class.define("kisside.Editor",
       }
 
       this.extRe = new RegExp(re, "gi");
+    },
+    
+    supportedThemes :
+    [
+      // Name                  Theme                      Light/Dark
+      ["Chrome"               ,"chrome"                  ,"light"],
+      ["Clouds"               ,"clouds"                  ,"light"],
+      ["Crimson Editor"       ,"crimson_editor"          ,"light"],
+      ["Dawn"                 ,"dawn"                    ,"light"],
+      ["Dreamweaver"          ,"dreamweaver"             ,"light"],
+      ["Eclipse"              ,"eclipse"                 ,"light"],
+      ["GitHub"               ,"github"                  ,"light"],
+      ["IPlastic"             ,"iplastic"                ,"light"],
+      ["Solarized Light"      ,"solarized_light"         ,"light"],
+      ["TextMate"             ,"textMate"                ,"light"],
+      ["Tomorrow"             ,"tomorrow"                ,"light"],
+      ["XCode"                ,"xcode"                   ,"light"],
+      ["Kuroir"               ,"kurior"                  ,"light"],
+      ["KatzenMilch"          ,"katzenmilch"             ,"light"],
+      ["SQL Server"           ,"sqlserver"               ,"light"],
+      ["Ambiance"             ,"ambiance"                ,"dark"],
+      ["Chaos"                ,"chaos"                   ,"dark"],
+      ["Clouds Midnight"      ,"clouds_midnight"         ,"dark"],
+      ["Cobalt"               ,"cobalt"                  ,"dark"],
+      ["Gruvbox"              ,"gruvbox"                 ,"dark"],
+      ["idle Fingers"         ,"idle_fingers"            ,"dark"],
+      ["krTheme"              ,"kr_theme"                ,"dark"],
+      ["Merbivore"            ,"merbivore"               ,"dark"],
+      ["Merbivore Soft"       ,"merbivore_soft"          ,"dark"],
+      ["Mono Industrial"      ,"mono_industrial"         ,"dark"],
+      ["Monokai"              ,"monokai"                 ,"dark"],
+      ["Pastel on dark"       ,"pastel_on_dark"          ,"dark"],
+      ["Solarized Dark"       ,"solarized_dark"          ,"dark"],
+      ["Terminal"             ,"terminal"                ,"dark"],
+      ["Tomorrow Night"       ,"tomorrow_night"          ,"dark"],
+      ["Tomorrow Night Blue"  ,"tomorrow_night_blue"     ,"dark"],
+      ["Tomorrow Night Bright","tomorrow_night_bright"   ,"dark"],
+      ["Tomorrow Night 80s"   ,"tomorrow_night_eighties" ,"dark"],
+      ["Twilight"             ,"twilight"                ,"dark"],
+      ["Vibrant Ink"          ,"vibrant_ink"             ,"dark"]
+    ],
+    
+    getThemeName : function(theme)
+    {
+      for(var i = 0; i < kisside.Editor.supportedThemes.length; i++)
+        if(kisside.Editor.supportedThemes[i][1] == theme)
+          return kisside.Editor.supportedThemes[i][0];
+      return "";
     },
     
     supportedModes : 
@@ -264,15 +326,15 @@ qx.Class.define("kisside.Editor",
     __editor : null,
     __ace : null,
     __startText : null,
-    __startOptions : null,
     __posInterval : null,
     __setFocus : false,
     __startMode : null,
     __curMode : null,
+    __options : null,
     
     __setPosLabel : function(row, col, lines, mode)
     {
-      this.__posLabel.setValue("Ln: " + row + ", Col: " + col + ", Lines: " + lines + ", Mode: " + mode);
+      this.__posLabel.setValue("Ln: " + (row + 1) + ", Col: " + (col + 1) + ", Lines: " + lines + ", Mode: " + mode);
     },
 
     __onPosTimeout : function()
@@ -295,7 +357,7 @@ qx.Class.define("kisside.Editor",
         var container = this.__editor.getContentElement().getDomElement();
         window.editor = this.__ace = ace.edit(container);
 //        this.__ace.setTheme("ace/theme/monokai");
-        this.__ace.setOptions({ fontSize: "14px" });
+//        this.__ace.setOptions({ fontSize: "14px" });
 //        this.__ace.setFontSize(14);
         if(this.__startMode)
           this.__setMode(this.__startMode);
@@ -304,11 +366,7 @@ qx.Class.define("kisside.Editor",
           this.__setText(this.__startText);
           this.__startText = null;
         }
-        if(this.__startOptions)
-        {
-          this.__setOptions(this.__startOptions);
-          this.__startOptions = null;
-        }
+        this.__setOptions(this.__options);
 
         var self = this;
         // append resize listener
@@ -335,28 +393,47 @@ qx.Class.define("kisside.Editor",
         this.__onPosTimeout();
         if(this.__setFocus)
           this.__ace.focus();
+        self.fireDataEvent("appear", null);        
       }, this, 500);
     },
 
     getOptions : function()
     {
-      var options = {};
-      options['ace'] = this.__ace.getOptions();
-      options['session'] = this.__ace.getSession().getOptions();
-      return options;
+      if(this.__ace)
+      {
+        if(!("fontSize" in this.__options))
+          this.__options.fontSize = this.__ace.getFontSize();
+        if(!("theme" in this.__options))
+          this.__options.theme = this.__ace.getTheme();
+        var session = this.__ace.getSession();
+        if(!("tabSize" in this.__options))
+          this.__options.tabSize = session.getTabSize();
+        if(!("softTabs" in this.__options))
+          this.__options.softTabs = session.getUseSoftTabs();
+      }
+      return this.__options;
     },
 
-    setOptions : function(options)
+    __setOptions : function(options)
     {
       if(this.__ace)
       {
-        if('ace' in options)
-          this.__ace.setOptions(options.ace);
-        if('session' in options)
-          this.__ace.getSession().setOptions(options.session);
+        if("fontSize" in options)
+          this.__ace.setFontSize(options.fontSize);
+        if("theme" in options)        
+          this.__ace.setTheme("ace/theme/" + options.theme);
+        var session = this.__ace.getSession();
+        if("tabSize" in options)
+          session.setTabSize(options.tabSize);
+        if("softTabs" in options)
+          session.setUseSoftTabs(options.softTabs);
       }
-      else
-        this.__startOptions = options;
+    },
+    
+    setOptions : function(options)
+    {
+      this.__options = options;
+      this.__setOptions(options);
     },
 
     getText : function()
@@ -440,6 +517,11 @@ qx.Class.define("kisside.Editor",
     redo : function()
     {
       this.__ace.execCommand("redo");
+    },
+    
+    gotoLine : function(line, offset)
+    {
+      this.__ace.gotoLine(line, offset, false);
     }
   }
 });

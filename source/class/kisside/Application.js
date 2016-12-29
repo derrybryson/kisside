@@ -41,7 +41,7 @@ qx.Class.define("kisside.Application",
   properties :
   {
     "authToken" : { nullable : true, init : null, apply : "__applyAuthToken" },
-    "user" : { nullable : true, init : null },
+    "user" : { nullable : true, init : null, apply : "__applyUser" },
     "userRpc" : { nullable : true, init : null },
     "fsRpc" : { nullable : true, init : null }
   },
@@ -101,7 +101,10 @@ qx.Class.define("kisside.Application",
       } 
       else 
       {
-        alert("Exception during async call: " + exc);
+        var mb = new kisside.MessageBox(this, "Error", "Error during async call: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
       }
     }, 
 
@@ -110,7 +113,20 @@ qx.Class.define("kisside.Application",
       qx.bom.Cookie.set("kiss_authtoken", value);
       this.debug("authtoken = " + this.getAuthToken());
     },
-
+    
+    __applyUser : function(value)
+    {
+      var config = value.config;
+      if("fsPaneWidth" in config.general)
+      {
+        this.__fsPane.setWidth(config.general.fsPaneWidth);
+      }
+      if("editor" in config && config.editor)
+      {
+        this.__editorCmd.setEnabled(true);
+      }
+    },
+    
     __onCheckSignedIn : function(result, exc)
     {
       if(exc == null) 
@@ -128,7 +144,10 @@ qx.Class.define("kisside.Application",
       else 
       {
         window.exc = exc;
-        alert("Exception during async call: " + exc);
+        var mb = new kisside.MessageBox(this, "Error", "Error signing in: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
       }
     },
 
@@ -164,7 +183,12 @@ qx.Class.define("kisside.Application",
           mb.center();
         }
         else
-          alert("Exception during async call: " + exc);
+        {
+          var mb = new kisside.MessageBox(this, "Error", "Error signing in: " + exc, 
+                                           kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+          this.getRoot().add(mb, {left:20, top:20});
+          mb.center();
+        }
       }
     }, 
 
@@ -203,7 +227,7 @@ qx.Class.define("kisside.Application",
       if(exc === null)
       {
         window.result = result;
-        var page = new kisside.PageEditor(filename, basedir, path + "/" + filename, result.stat, result.contents);
+        var page = new kisside.PageEditor(filename, basedir, path + "/" + filename, result.stat, result.contents, this.getUser().config.editor);
         this.__tabView.add(page);
         this.__tabView.setSelection([page]);
         this.__refreshFSTreeSelected();
@@ -277,6 +301,18 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __setEditorConfigIfEmpty : function(editor)
+    {
+      var user = this.getUser();
+      var config = user.config;
+      if(!("editor" in config) || !config.editor)
+      {
+        config.editor = editor;
+        user.config = config;
+        this.getUserRpc.update(user);
+      }
+    },
+    
     __onDoOpenCmd : function(result, exc, filename, path, basedir)
     {
       if(exc === null)
@@ -299,7 +335,7 @@ qx.Class.define("kisside.Application",
         page.add(editor, { flex: 1 });
         page.addListener("focus", function() { this.debug("page focus"); editor.focus(); });
 */
-        var page = new kisside.PageEditor(filename, basedir, path, result.stat, result.contents);
+        var page = new kisside.PageEditor(filename, basedir, path, result.stat, result.contents, this.getUser().config.editor);
         this.__tabView.add(page);
         this.__tabView.setSelection([page]);
       }
@@ -531,6 +567,94 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __onGotoCmd : function(line)
+    {
+      var page = this.__getSelectedPage();
+      if(page)
+      {
+        var editor = page.getEditor();
+        if(editor)
+        {
+          var linenum = line || 0;
+          if(linenum > 0)
+          {
+            editor.gotoLine(linenum, 0);
+            editor.focus();
+          }
+        }
+      }
+    },
+    
+    __doGotoCmd : function()
+    {
+      var page = this.__getSelectedPage();
+      if(page)
+      {
+        var editor = page.getEditor();
+        if(editor)
+        {
+          var d = new kisside.PromptDialog("Goto Line", "Line No:", "", 300, 200, this.__onGotoCmd, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
+        }
+      }
+    },
+    
+    __onClone : function(result, exc)
+    {
+      if(exc === null)
+      {
+        window.result = result;
+        var selection = this.__fsTree.getSelection().toArray();
+        if(selection.length > 0)
+        {
+          var item = selection[0];
+          var x = this.__getItemParentForPath(item.getBasedir(), item.getPath());
+          this.debug("x = " + JSON.stringify(x));
+          if(x)
+            this.__refreshFSTreeItem(x.parent);
+        }
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Unable to clone file: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+      }
+    },
+
+    __onClonePrompt : function(newname, item)
+    {
+      if(newname !== "")
+      {
+        var parts = item.getPath().split('/');
+        parts[parts.length - 1] = newname;
+        var path = parts.join('/');
+        this.debug("copying " + item.getPath() + " to " + path);
+        this.getFsRpc().copy(item.getBasedir(), item.getPath(), item.getBasedir(), path, 0, this.__onClone, this);
+      }
+    },
+    
+    __doCloneCmd : function()
+    {
+      this.debug("__doCloneCmd");
+      var selection = this.__fsTree.getSelection().toArray();
+      if(selection.length > 0)
+      {
+        var item = selection[0];
+        if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
+        {
+          var parts = item.getLabel().split(".");
+          parts[0] += " Copy";
+          var newname = parts.join(".");
+          var d = new kisside.PromptDialog("Clone File As", "Enter name for clone file:", newname, 1024, 200, function(text) { this.__onClonePrompt(text, item); }, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
+        }
+      }
+    },
+    
     __onFSTreeChangeSelection : function(e)
     {
       var selection = this.__fsTree.getSelection(); 
@@ -723,6 +847,17 @@ qx.Class.define("kisside.Application",
 //        height: 100,
         decorator : "main"
       });
+      this.__fsPane.addListener("resize", function(data) 
+      { 
+        this.debug("fsPane resize, width = " + this.__fsPane.getWidth()); 
+        if(this.getUser())
+        {
+          this.debug("getUser");
+          this.getUser().config.general =  {};
+          this.getUser().config.general.fsPaneWidth = this.__fsPane.getWidth();
+          this.getUserRpc().update(this.getUser(), this.__onUpdateUser, this);
+        }
+      }, this);
 //      var tree = this.__createVDummyTree();
 //      this.__fsPane.add(tree);
 
@@ -769,6 +904,30 @@ qx.Class.define("kisside.Application",
       if(page)
         return page.getChildren()[0];
       return null;
+    },
+    
+    __onUpdateUser : function(result, exc)
+    {
+      if(exc === null)
+      {
+        this.debug("Response: " + JSON.stringify(result));
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Error updating user account information: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+        
+      }
+    }, 
+    
+    __setEditorOptions : function(config)
+    {
+      this.debug("save settings: " + JSON.stringify(config));
+      this.getUser().config.editor = config;
+      this.getUserRpc().update(this.getUser(), this.__onUpdateUser, this);
+      this.__tabView.getChildren().forEach(function(page) { page.getEditor().setOptions(config); });
     },
 
     __createCommands : function()
@@ -847,7 +1006,7 @@ qx.Class.define("kisside.Application",
       this.__cloneCmd = new qx.ui.command.Command("");
       this.__cloneCmd.setLabel("Clone");
 //      this.__cloneCmd.setIcon("icon/16/actions/go-up.png");
-      this.__cloneCmd.addListener("execute", this.__debugCommand);
+      this.__cloneCmd.addListener("execute", this.__doCloneCmd, this);
       this.__cloneCmd.setToolTipText("Clone");
 
       this.__copyCmd = new qx.ui.command.Command("");
@@ -919,7 +1078,7 @@ qx.Class.define("kisside.Application",
       this.__gotoCmd = new qx.ui.command.Command("Ctrl+G");
       this.__gotoCmd.setLabel("Goto...");
 //      this.__searchNextCmd.setIcon("icon/16/actions/system-search.png")
-      this.__gotoCmd.addListener("execute", this.__debugCommand);
+      this.__gotoCmd.addListener("execute", this.__doGotoCmd, this);
       this.__gotoCmd.setToolTipText("Goto Line");
       
       this.__acctCmd = new qx.ui.command.Command("");
@@ -930,13 +1089,17 @@ qx.Class.define("kisside.Application",
 
       this.__editorCmd = new qx.ui.command.Command("");
       this.__editorCmd.setLabel("Editor...");
-      this.__editorCmd.setIcon("icon/16/apps/preferences-users.png")
-      this.__editorCmd.addListener("execute", this.__debugCommand);
+      this.__editorCmd.setIcon("icon/16/apps/utilities-text-editor.png")
+      this.__editorCmd.addListener("execute", function() { 
+        var dialog = new kisside.EditorDialog(this.getUser().config.editor, this.__setEditorOptions, this);
+        this.getRoot().add(dialog, {left:20, top:20});
+        dialog.center();
+      }, this);
       this.__editorCmd.setToolTipText("User Administration");
 
       this.__usersCmd = new qx.ui.command.Command("");
       this.__usersCmd.setLabel("Users...");
-      this.__usersCmd.setIcon("icon/16/apps/utilities-text-editor.png")
+      this.__usersCmd.setIcon("icon/16/apps/preferences-users.png")
       this.__usersCmd.addListener("execute", this.__debugCommand);
       this.__usersCmd.setToolTipText("Editor Settings");
 
@@ -964,6 +1127,8 @@ qx.Class.define("kisside.Application",
 //      this.__aboutCmd.setIcon("icon/16/actions/view-refresh.png")
       this.__aboutCmd.addListener("execute", this.__about, this);
       this.__aboutCmd.setToolTipText("About KISSIDE");
+      
+      this.debug("cmds");
     },
 
     __debugButton : function(e) {
