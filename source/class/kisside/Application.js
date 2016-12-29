@@ -853,7 +853,6 @@ qx.Class.define("kisside.Application",
         if(this.getUser())
         {
           this.debug("getUser");
-          this.getUser().config.general =  {};
           this.getUser().config.general.fsPaneWidth = this.__fsPane.getWidth();
           this.getUserRpc().update(this.getUser(), this.__onUpdateUser, this);
         }
