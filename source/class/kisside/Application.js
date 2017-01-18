@@ -20,6 +20,7 @@
  * @asset(qx/icon/${qx.icontheme}/16/apps/utilities-help.png)
  * @asset(qx/icon/${qx.icontheme}/16/places/folder.png)
  * @asset(qx/icon/${qx.icontheme}/16/mimetypes/office-document.png)
+ * @asset(qx/icon/${qx.icontheme}/16/mimetypes/text-plain.png)
  * 
  * @lint ignoreDeprecated(alert)
  */
@@ -116,6 +117,14 @@ qx.Class.define("kisside.Application",
     
     __applyUser : function(value)
     {
+      if(value.admin == 1)
+      {
+        this.__usersCmd.setEnabled(true);
+      }
+      else
+      {
+        this.__usersCmd.setEnabled(false);
+      }
       var config = value.config;
       if("fsPaneWidth" in config.general)
       {
@@ -162,7 +171,7 @@ qx.Class.define("kisside.Application",
     {
       if(exc == null) 
       {
-        alert("Result of async call: " + JSON.stringify(result));
+//        alert("Result of async call: " + JSON.stringify(result));
         if(result !== false)
         {
           this.setUser(result.user);
@@ -495,6 +504,16 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __doDownload : function()
+    {
+      var selection = this.__fsTree.getSelection().toArray();
+      if(selection.length > 0)
+      {
+        var item = selection[0];
+        window.open("api/download.php?authtoken=" + encodeURIComponent(this.getAuthToken()) + "&basedir=" + encodeURIComponent(item.getBasedir()) + "&path=" + encodeURIComponent(item.getPath()), "_blank");
+      }
+    },
+    
     __onDelete : function(result, exc)
     {
       if(exc === null)
@@ -665,7 +684,9 @@ qx.Class.define("kisside.Application",
       this.__newFolderCmd.setEnabled(false);
       this.__openCmd.setEnabled(false);
       this.__uploadCmd.setEnabled(false);
+      this.__downloadCmd.setEnabled(false);
       this.__cloneCmd.setEnabled(false);
+      this.__executeCmd.setEnabled(false);
       this.__copyCmd.setEnabled(this.__fsTree.getSelection().length > 0);
       this.__pasteCmd.setEnabled(false);
       this.__deleteCmd.setEnabled(false);
@@ -680,6 +701,8 @@ qx.Class.define("kisside.Application",
           this.__openCmd.setEnabled(true);
           this.__cloneCmd.setEnabled(true);
           this.__deleteCmd.setEnabled(true);
+          this.__executeCmd.setEnabled(true);
+          this.__downloadCmd.setEnabled(true);
         }
         else
         {
@@ -854,7 +877,7 @@ qx.Class.define("kisside.Application",
         {
           this.debug("getUser");
           this.getUser().config.general.fsPaneWidth = this.__fsPane.getWidth();
-          this.getUserRpc().update(this.getUser(), this.__onUpdateUser, this);
+          this.getUserRpc().update(this.getUser(), function(result, exc) { this.__onUpdateUser(this.getUser(), false, result, exc); }, this);
         }
       }, this);
 //      var tree = this.__createVDummyTree();
@@ -905,11 +928,14 @@ qx.Class.define("kisside.Application",
       return null;
     },
     
-    __onUpdateUser : function(result, exc)
+    __onUpdateUser : function(user, add, result, exc)
     {
       if(exc === null)
       {
         this.debug("Response: " + JSON.stringify(result));
+        if("password" in user && user.password !== "" && !add)
+          this.getUserRpc().setPassword(user.username, user.password);
+//        this.__checkSignedIn();  // update user info
       }
       else
       {
@@ -917,7 +943,6 @@ qx.Class.define("kisside.Application",
                                          kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
         this.getRoot().add(mb, {left:20, top:20});
         mb.center();
-        
       }
     }, 
     
@@ -925,8 +950,39 @@ qx.Class.define("kisside.Application",
     {
       this.debug("save settings: " + JSON.stringify(config));
       this.getUser().config.editor = config;
-      this.getUserRpc().update(this.getUser(), this.__onUpdateUser, this);
+      this.getUserRpc().update(this.getUser(), function(result, exc) { this.__onUpdateUser(this.getUser(), result, exc); }, this);
       this.__tabView.getChildren().forEach(function(page) { page.getEditor().setOptions(config); });
+    },
+    
+    __onGetUsers : function(result, exc)
+    {
+      if(exc === null)
+      {
+        var dialog = new kisside.UsersDialog(this, result);
+        this.getRoot().add(dialog, {left:20, top:20});
+        dialog.center();
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Error getting users: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+      }
+    }, 
+    
+    __doUsersCmd : function()
+    {
+      this.getUserRpc().getAll(this.__onGetUsers, this);      
+    },
+    
+    __updateUser : function(user)
+    {
+      this.debug("user = " + JSON.stringify(user));
+      if(user.userid)
+        this.getUserRpc().update(user, function(result, exc) { this.__onUpdateUser(user, false, result, exc); }, this);
+      else
+        this.getUserRpc().add(user, function(result, exc) { this.__onUpdateUser(user, true, result, exc); }, this);
     },
 
     __createCommands : function()
@@ -995,6 +1051,20 @@ qx.Class.define("kisside.Application",
       this.__uploadCmd.addListener("execute", this.__doUpload, this);
       this.__uploadCmd.setToolTipText("Upload File");
       this.__uploadCmd.setEnabled(false);
+
+      this.__downloadCmd = new qx.ui.command.Command("");
+      this.__downloadCmd.setLabel("Download File");
+      this.__downloadCmd.setIcon("icon/16/actions/go-down.png");
+      this.__downloadCmd.addListener("execute", this.__doDownload, this);
+      this.__downloadCmd.setToolTipText("Download File");
+      this.__downloadCmd.setEnabled(false);
+
+      this.__executeCmd = new qx.ui.command.Command("");
+      this.__executeCmd.setLabel("Execute File");
+      this.__executeCmd.setIcon("icon/16/actions/go-next.png");
+      this.__executeCmd.addListener("execute", this.__debugCommand, this);
+      this.__executeCmd.setToolTipText("Execute File");
+      this.__executeCmd.setEnabled(false);
 
       this.__renameCmd = new qx.ui.command.Command("");
       this.__renameCmd.setLabel("Rename...");
@@ -1083,7 +1153,11 @@ qx.Class.define("kisside.Application",
       this.__acctCmd = new qx.ui.command.Command("");
       this.__acctCmd.setLabel("Account...");
       this.__acctCmd.setIcon("icon/16/categories/system.png")
-      this.__acctCmd.addListener("execute", this.__debugCommand);
+      this.__acctCmd.addListener("execute", function() { 
+        var dialog = new kisside.UserDialog(this, this.getUser(), this.__updateUser, this);
+        this.getRoot().add(dialog, {left:20, top:20});
+        dialog.center();
+      }, this);
       this.__acctCmd.setToolTipText("Account Settings");
 
       this.__editorCmd = new qx.ui.command.Command("");
@@ -1099,8 +1173,9 @@ qx.Class.define("kisside.Application",
       this.__usersCmd = new qx.ui.command.Command("");
       this.__usersCmd.setLabel("Users...");
       this.__usersCmd.setIcon("icon/16/apps/preferences-users.png")
-      this.__usersCmd.addListener("execute", this.__debugCommand);
+      this.__usersCmd.addListener("execute", this.__doUsersCmd, this);
       this.__usersCmd.setToolTipText("Editor Settings");
+      this.__usersCmd.setEnabled(false);
 
       this.__refreshCmd = new qx.ui.command.Command("Ctrl+R");
       this.__refreshCmd.setLabel("Refresh");
@@ -1118,7 +1193,7 @@ qx.Class.define("kisside.Application",
       this.__helpCmd = new qx.ui.command.Command("F1");
       this.__helpCmd.setLabel("Help");
       this.__helpCmd.setIcon("icon/16/apps/utilities-help.png")
-      this.__helpCmd.addListener("execute", this.__debugCommand);
+      this.__helpCmd.addListener("execute", function() { window.open("docs", "_blank"); });
       this.__helpCmd.setToolTipText("Help");
 
       this.__aboutCmd = new qx.ui.command.Command();
@@ -1194,6 +1269,7 @@ qx.Class.define("kisside.Application",
       var saveButton = new qx.ui.menu.Button("", "", this.__saveCmd);
       var saveAsButton = new qx.ui.menu.Button("", "", this.__saveAsCmd);
       var uploadButton = new qx.ui.menu.Button("", "", this.__uploadCmd);
+      var downloadButton = new qx.ui.menu.Button("", "", this.__downloadCmd);
 //      var printButton = new qx.ui.menu.Button("Print", "icon/16/actions/document-print.png");
 
       menu.add(newFileButton);
@@ -1204,6 +1280,7 @@ qx.Class.define("kisside.Application",
       menu.add(saveButton);
       menu.add(saveAsButton);
       menu.add(uploadButton);
+      menu.add(downloadButton);
 //      menu.add(printButton);
 
       return menu;
@@ -1306,6 +1383,10 @@ qx.Class.define("kisside.Application",
       deleteButton.setLabel(null);
       var uploadButton = new qx.ui.toolbar.Button("", "", this.__uploadCmd);
       uploadButton.setLabel(null);
+      var downloadButton = new qx.ui.toolbar.Button("", "", this.__downloadCmd);
+      downloadButton.setLabel(null);
+      var executeButton = new qx.ui.toolbar.Button("", "", this.__executeCmd);
+      executeButton.setLabel(null);
 
       var undoButton = new qx.ui.toolbar.Button("", "", this.__undoCmd);
       undoButton.setLabel(null);
@@ -1320,6 +1401,8 @@ qx.Class.define("kisside.Application",
       part1.add(openButton);
       part1.add(deleteButton);
       part1.add(uploadButton);
+      part1.add(downloadButton);
+      part1.add(executeButton);
       part1.add(new qx.ui.toolbar.Separator());
       part1.add(undoButton);
       part1.add(redoButton);
@@ -1344,19 +1427,23 @@ qx.Class.define("kisside.Application",
       var openButton = new qx.ui.menu.Button("", "", this.__openCmd);
       var deleteButton = new qx.ui.menu.Button("", "", this.__deleteCmd);
       var uploadButton = new qx.ui.menu.Button("", "", this.__uploadCmd);
+      var downloadButton = new qx.ui.menu.Button("", "", this.__downloadCmd);
       var refreshButton = new qx.ui.menu.Button("", "", this.__refreshCmd); 
       var renameButton = new qx.ui.menu.Button("", "", this.__renameCmd); 
       var copyButton = new qx.ui.menu.Button("", "", this.__copyCmd); 
       var pasteButton = new qx.ui.menu.Button("", "", this.__pasteCmd); 
       var cloneButton = new qx.ui.menu.Button("", "", this.__cloneCmd); 
+      var executeButton = new qx.ui.menu.Button("", "", this.__executeCmd); 
 
       contextMenu.add(newFileButton); 
       contextMenu.add(newFolderButton); 
       contextMenu.add(openButton); 
       contextMenu.add(deleteButton); 
       contextMenu.add(uploadButton); 
+      contextMenu.add(downloadButton); 
       contextMenu.add(renameButton); 
       contextMenu.add(cloneButton); 
+      contextMenu.add(executeButton); 
       contextMenu.addSeparator(); 
       contextMenu.add(copyButton); 
       contextMenu.add(pasteButton); 

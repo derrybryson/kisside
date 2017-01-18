@@ -58,6 +58,30 @@ function userGetByID($userid)
   return $user;
 }
 
+function userGetAll()
+{
+  global $db;
+  $users = array();
+  try
+  {
+    $db->beginTransaction();
+    $result = $db->query("select * from users order by username");
+    if($result)
+    {
+      $users = $result->fetchAll();
+      foreach($users as $user)
+        _userDecodeConfig($user);
+    }
+    $db->commit();
+  }
+  catch(Exception $e)
+  {
+    error_log($e->getMessage() . ": " . $e->getTraceAsString());
+    $db->rollBack();
+  }
+  return $users;
+}
+
 function userAdd($user)
 {
   global $db, $DEF_USER_OPTIONS;
@@ -65,9 +89,16 @@ function userAdd($user)
   try
   {
     $db->beginTransaction();
-    $result = $conn->query("insert into users (username, password, admin, options) values (" . $db->quote($user["username"]) . ", " . $db->quote(password_hash($user["password"])) . ", " . $db->quote($user["admin"]) . ", " . $db->quote(json.encode($DEF_USER_OPTIONS)) . ")");
+    $user["config"] = $DEF_USER_OPTIONS;
+    _userEncodeConfig($user);
+    $result = $db->query("insert into users (username, password, admin, config) values (" . $db->quote($user["username"]) . ", " . $db->quote(password_hash($user["password"], PASSWORD_DEFAULT)) . ", " . $db->quote($user["admin"]) . ", " . $db->quote($user["config"]) . ")");
     if($result)
       $id = $db->lastInsertId();
+    else
+    {
+      $error = $db->errorInfo();
+      throw new Exception($error[2], $error[1]);
+    }
     $db->commit();
   }
   catch(Exception $e)

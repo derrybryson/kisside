@@ -31,9 +31,11 @@ qx.Class.define("kisside.EditorDialog",
     tabSize.setRequired(true);
     tabSize.setMaxLength(2);
     tabSize.setWidth(125);
+    tabSize.setLiveUpdate(true);
     form.add(tabSize, "Tab Size", null, "tabSize");
     
     var softTabs = new qx.ui.form.CheckBox("Use Spaces for Tabs");
+//    softTabs.setLiveUpdate(true);
     form.add(softTabs, "", null, "softTabs");
 
     var fontSize = new qx.ui.form.SelectBox();
@@ -47,6 +49,7 @@ qx.Class.define("kisside.EditorDialog",
     fontSize.add(new qx.ui.form.ListItem("20px", "", "20px"));
     fontSize.add(new qx.ui.form.ListItem("22px", "", "22px"));
     fontSize.add(new qx.ui.form.ListItem("24px", "", "24px"));
+    fontSize.setLiveUpdate(true);
     form.add(fontSize, "Font Size", null, "fontSize");
                  
     var theme = new qx.ui.form.SelectBox();
@@ -55,6 +58,7 @@ qx.Class.define("kisside.EditorDialog",
       var ti = kisside.Editor.supportedThemes[i];
       theme.add(new qx.ui.form.ListItem(ti[0] + " (" + ti[2] + ")", "", ti[1]));
     }
+    theme.setLiveUpdate(true);
     form.add(theme, "Theme", null, "theme");
     
     // buttons

@@ -42,7 +42,7 @@
   {
     "APPLICATION"  : "kisside",
     "QOOXDOO_PATH" : "../qooxdoo-5.0.1-sdk",
-    "QXTHEME"      : "qx.theme.Indigo",
+    "QXTHEME"      : "qx.theme.Modern",
     "API_EXCLUDE"  : ["qx.test.*", "${APPLICATION}.theme.*", "${APPLICATION}.test.*"],
     "LOCALES"      : [ "en" ],
     "CACHE"        : "${TMPDIR}/qx${QOOXDOO_VERSION}/cache",

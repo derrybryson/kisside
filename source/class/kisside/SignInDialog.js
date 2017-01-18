@@ -33,12 +33,14 @@ qx.Class.define("kisside.SignInDialog",
     userName.setRequired(true);
     userName.setMaxLength(30);
     userName.setWidth(125);
+    userName.setLiveUpdate(true);
     form.add(userName, "Username");
     // add password
     var password = new qx.ui.form.PasswordField();
     password.setRequired(true);
     password.setMaxLength(30);
     password.setWidth(125);
+    password.setLiveUpdate(true);
     form.add(password, "Password");
 
     // buttons
@@ -59,10 +61,12 @@ qx.Class.define("kisside.SignInDialog",
     // serialization and reset /////////
     signInButton.addListener("execute", function() {
       if (form.validate()) {
+        controller.updateModel();
         this.debug("password = " + password.getValue());
-        alert("You are saving: " + qx.util.Serializer.toJson(model));
+        this.debug("model password = " + controller.getModel().getPassword());
+//        alert("You are saving: " + qx.util.Serializer.toJson(controller.getModel()));
         this.close();
-        this.__app.doSignIn(model.getUsername(), model.getPassword());
+        this.__app.doSignIn(controller.getModel().getUsername(), controller.getModel().getPassword());
       }
     }, this);
 //    cancelButton.addListener("execute", form.reset, form);
@@ -80,6 +84,7 @@ qx.Class.define("kisside.SignInDialog",
 */    
 //        userName.blur();
 //        password.blur();       
+//        this.debug("enter");
         signInButton.focus();     
         signInButton.execute();
       } 

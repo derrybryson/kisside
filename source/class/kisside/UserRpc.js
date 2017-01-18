@@ -48,6 +48,31 @@ qx.Class.define("kisside.UserRpc",
     update : function(user, callback, context)
     {
       this.__call(callback, "update", { "authtoken" : this.__app.getAuthToken(), "user" : user }, context);
+    },
+    
+    add : function(user, callback, context)
+    {
+      this.__call(callback, "add", { "authtoken" : this.__app.getAuthToken(), "user" : user }, context);
+    },
+    
+    remove : function(username, callback, context)
+    {
+      this.__call(callback, "remove", { "authtoken" : this.__app.getAuthToken(), "username" : username }, context);
+    },
+    
+    getByID : function(userid, callback, context)
+    {
+      this.__call(callback, "get_by_id", { "authtoken" : this.__app.getAuthToken(), "userid" : userid }, context);
+    },
+    
+    getByUsername : function(username, callback, context)
+    {
+      this.__call(callback, "get_by_username", { "authtoken" : this.__app.getAuthToken(), "username" : username }, context);
+    },
+    
+    getAll : function(callback, context)
+    {
+      this.__call(callback, "get_all", { "authtoken" : this.__app.getAuthToken() }, context);
     }
   }
 });

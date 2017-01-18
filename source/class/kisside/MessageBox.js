@@ -164,6 +164,8 @@ qx.Class.define("kisside.MessageBox",
           this.__cancelButton.focus();
           this.__cancelButton.execute(); 
         }
+        else
+          this.close();
       }
     }
   }
