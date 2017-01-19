@@ -32,22 +32,24 @@ qx.Class.define("kisside.KissRpc",
   construct : function(app, url, service)
   {
     this.base(arguments);
-    this.__app = app;
-    this.__rpc = new qx.io.remote.Rpc(url, service);  
+    console.log("KissRpc: app = " + app + ", url = " + url + ", service = " + service);
+    this._app = app;
+    console.log("KissRpc: this._app = " + this._app);
+    this._rpc = new qx.io.remote.Rpc(url, service);  
   },
 
   destruct : function()
   {
-    this.__app = null;
-    this.__rpc = null;
+    this._app = null;
+    this._rpc = null;
   },
 
   members :
   {
-    __app : null,
-    __rpc : null,
+    _app : null,
+    _rpc : null,
 
-    __onCall : function(result, exc, callback, method, params, context)
+    _onCall : function(result, exc, callback, method, params, context)
     {
       if(callback)
       {
@@ -62,10 +64,10 @@ qx.Class.define("kisside.KissRpc",
       }
     },
 
-    __call : function(callback, method, params, context)
+    _call : function(callback, method, params, context)
     {
       var self = this;
-      this.__rpc.callAsync(function(result, exc) { self.__onCall(result, exc, callback, method, params, context); }, method, params);
+      this._rpc.callAsync(function(result, exc) { self._onCall(result, exc, callback, method, params, context); }, method, params);
     }
   }
 });

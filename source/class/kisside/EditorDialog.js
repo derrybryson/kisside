@@ -49,7 +49,7 @@ qx.Class.define("kisside.EditorDialog",
     fontSize.add(new qx.ui.form.ListItem("20px", "", "20px"));
     fontSize.add(new qx.ui.form.ListItem("22px", "", "22px"));
     fontSize.add(new qx.ui.form.ListItem("24px", "", "24px"));
-    fontSize.setLiveUpdate(true);
+//    fontSize.setLiveUpdate(true);
     form.add(fontSize, "Font Size", null, "fontSize");
                  
     var theme = new qx.ui.form.SelectBox();
@@ -58,7 +58,7 @@ qx.Class.define("kisside.EditorDialog",
       var ti = kisside.Editor.supportedThemes[i];
       theme.add(new qx.ui.form.ListItem(ti[0] + " (" + ti[2] + ")", "", ti[1]));
     }
-    theme.setLiveUpdate(true);
+//    theme.setLiveUpdate(true);
     form.add(theme, "Theme", null, "theme");
     
     // buttons

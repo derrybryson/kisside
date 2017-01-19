@@ -91,6 +91,7 @@ qx.Class.define("kisside.Application",
       this.__fsClipboard = [];
       
       this.__makeMain();
+      console.log("calling __checkSignedIn");
       this.__checkSignedIn();
     },
 
@@ -162,7 +163,7 @@ qx.Class.define("kisside.Application",
 
     __checkSignedIn : function()
     {
-      this.debug("__checkSignedIn");
+      console.log("__checkSignedIn");
       var self = this;
       this.getUserRpc().isSignedIn(function(result, exc) { self.__onCheckSignedIn(result, exc); });
     },

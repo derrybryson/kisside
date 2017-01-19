@@ -23,7 +23,8 @@ function userGet($username)
     if($result)
     {
       $user = $result->fetch();
-      _userDecodeConfig($user);
+      if($user)
+        _userDecodeConfig($user);
     }
     $db->commit();
   }
@@ -46,7 +47,8 @@ function userGetByID($userid)
     if($result)
     {
       $user = $result->fetch();
-      _userDecodeConfig($user);
+      if($user)
+        _userDecodeConfig($user);
     }
     $db->commit();
   }
@@ -91,7 +93,7 @@ function userAdd($user)
     $db->beginTransaction();
     $user["config"] = $DEF_USER_OPTIONS;
     _userEncodeConfig($user);
-    $result = $db->query("insert into users (username, password, admin, config) values (" . $db->quote($user["username"]) . ", " . $db->quote(password_hash($user["password"], PASSWORD_DEFAULT)) . ", " . $db->quote($user["admin"]) . ", " . $db->quote($user["config"]) . ")");
+    $result = $db->query("insert into users (username, password, admin, config) values (" . $db->quote($user["username"]) . ", " . $db->quote(password_hash($user["password"], PASSWORD_BCRYPT)) . ", " . $db->quote($user["admin"]) . ", " . $db->quote($user["config"]) . ")");
     if($result)
       $id = $db->lastInsertId();
     else
@@ -120,7 +122,7 @@ function userUpdate($userid, $update)
     foreach($update as $field => $value)
     {
       if($field == "password")
-        $value = password_hash($value, PASSWORD_DEFAULT);
+        $value = password_hash($value, PASSWORD_BCRYPT);
       $set .=  ($set == "" ? "" : ", ") . $field . "=" . $db->quote($value);
     }
     $db->beginTransaction();
@@ -160,6 +162,8 @@ function userRem($username)
 function userVerify($username, $password)
 {
   $user = userGet($username);
+  if($user)
+    error_log("GOT USER, password = '$password', user[password] = '{$user["password"]}', len = " . strlen($user["password"]));
   return ($user && password_verify($password, $user["password"])) ? $user : false;
 }
 
