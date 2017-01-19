@@ -23,6 +23,7 @@ qx.Class.define("kisside.MessageBox",
     FLAG_OK_CANCEL : 16,
     FLAG_YES_NO : 32,
     FLAG_QUESTION : 64,
+    FLAG_HTML : 128,
 
     // response result codes
     RESP_CANCEL : 0,
@@ -54,6 +55,8 @@ qx.Class.define("kisside.MessageBox",
       atom.setIcon("icon/32/status/dialog-error.png");
     else if(flags & kisside.MessageBox.FLAG_QUESTION)
       atom.setIcon("icon/32/actions/help-faq.png");
+    if(flags & kisside.MessageBox.FLAG_HTML)
+      atom.setRich(true);
     dialogPane.add(atom);
 
     var buttonPane = new qx.ui.container.Composite();

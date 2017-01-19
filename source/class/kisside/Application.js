@@ -1216,7 +1216,7 @@ qx.Class.define("kisside.Application",
 
     __about : function()
     {
-      var mb = new kisside.MessageBox(this, "About", "KISS Edit, Version " + kisside.Application.VERSION, kisside.MessageBox.FLAG_INFO | kisside.MessageBox.FLAG_OK);
+      var mb = new kisside.MessageBox(this, "About", "KISS IDE, Version " + kisside.Application.VERSION + "<br><br>This software is licensed under the GNU General Public License (GPL) Version 3.<br>See the included LICENSE file for details.  Source code available <a href=\"https://github.com/derrybryson/kisside\" target=\"_blank\">here</a><br><br>This software is built using the wonderful <a href=\"http://qooxdoo.org\" target=\"_blank\">qooxdoo</a> framework. <br><br>Copyright &copy; 2017 Derone T. Bryson.  All Rights Reserved.", kisside.MessageBox.FLAG_OK | kisside.MessageBox.FLAG_HTML);
       this.getRoot().add(mb, {left:20, top:20});
       mb.center();
     },
@@ -1272,6 +1272,7 @@ qx.Class.define("kisside.Application",
       var uploadButton = new qx.ui.menu.Button("", "", this.__uploadCmd);
       var downloadButton = new qx.ui.menu.Button("", "", this.__downloadCmd);
 //      var printButton = new qx.ui.menu.Button("Print", "icon/16/actions/document-print.png");
+      var signoutButton = new qx.ui.menu.Button("", "", this.__signoutCmd);
 
       menu.add(newFileButton);
       menu.add(newFolderButton);
@@ -1283,6 +1284,8 @@ qx.Class.define("kisside.Application",
       menu.add(uploadButton);
       menu.add(downloadButton);
 //      menu.add(printButton);
+      menu.addSeparator();
+      menu.add(signoutButton);
 
       return menu;
     },
