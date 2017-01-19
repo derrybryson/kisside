@@ -12,7 +12,7 @@ echo "Building KISSIDE..."
 
 echo "Installing files..."
 install -d -m 0755 $INSTDIR $WWWDIR $UPLOADTMPDIR
-chown www-data:www-data $UPLOADDIR
+chown www-data:www-data $UPLOADTMPDIR
 pushd build > /dev/null
 rm $DATAFILE
 rm api/config.php
