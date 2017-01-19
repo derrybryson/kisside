@@ -161,6 +161,7 @@ class fsHandler extends kisshandler
     if(!$this->checkParams($params, array("authtoken", "basedir", "path")))
       return $this->newParamErrorResp($req);
     $this->trimParams($params);
+    error_log("mkdir path = {$params["path"]}");
     if(!$params["basedir"] || !$params["path"] || !$this->validPath($params["path"]))
       return $this->newParamErrorResp($req);
     if($this->checkUserAuth($params["authtoken"]))

@@ -253,7 +253,7 @@ qx.Class.define("kisside.Application",
     
     __onDoNewCmdPrompt : function(basedir, path, filename)
     {
-      this.getFsRpc().write(basedir, path + "/" + filename, "", 0, 0, function(result, exc) { this.__onDoNewCmd(result, exc, filename, basedir, path); }, this);
+      this.getFsRpc().write(basedir, path.length > 0 ? path + "/" + filename : filename, "", 0, 0, function(result, exc) { this.__onDoNewCmd(result, exc, filename, basedir, path); }, this);
     },
     
     __doNewCmd : function()
@@ -292,7 +292,7 @@ qx.Class.define("kisside.Application",
     __onDoNewFolderCmdPrompt : function(basedir, path, filename)
     {
       this.debug("1");
-      this.getFsRpc().mkdir(basedir, path + "/" + filename, function(result, exc) { this.debug("2"); this.__onDoNewFolderCmd(result, exc, filename, basedir, path); }, this);
+      this.getFsRpc().mkdir(basedir, path.length > 0 ? path + "/" + filename : filename, function(result, exc) { this.debug("2"); this.__onDoNewFolderCmd(result, exc, filename, basedir, path); }, this);
     },
     
     __doNewFolderCmd : function()
@@ -821,13 +821,16 @@ qx.Class.define("kisside.Application",
       {
         this.__saveCmd.setEnabled(true);
         this.__saveAsCmd.setEnabled(true);
+        this.__closeCmd.setEnabled(true);
         this.__curPage.getChildren()[0].focus(); 
       }
       else
       {
         this.__saveCmd.setEnabled(false);
         this.__saveAsCmd.setEnabled(false);
+        this.__closeCmd.setEnabled(false);
       }
+      this.__closeAllCmd.setEnabled(this.__tabView.getChildren().length > 0);
     },
     
     __onPageClose : function(e)
@@ -985,6 +988,23 @@ qx.Class.define("kisside.Application",
       else
         this.getUserRpc().add(user, function(result, exc) { this.__onUpdateUser(user, true, result, exc); }, this);
     },
+    
+    __doCloseCmd : function()
+    {
+      this.debug("__doCloseCmd");
+      var page = this.__getSelectedPage();
+      if(page)
+        page.close();
+    },
+    
+    __doCloseAllCmd : function()
+    {
+      this.debug("__doCloseAllCmd");
+      var pages = [];
+      this.__tabView.getChildren().forEach(function(page) { pages.push(page); });
+      for(var i = 0; i < pages.length; i++)
+        pages[i].close();
+    },
 
     __createCommands : function()
     {
@@ -1021,14 +1041,14 @@ qx.Class.define("kisside.Application",
       this.__closeCmd = new qx.ui.command.Command("Ctrl+W");
       this.__closeCmd.setLabel("Close File");
 //      this.__closeCmd.setIcon("icon/16/actions/document-open.png");
-      this.__closeCmd.addListener("execute", this.__debugCommand);
+      this.__closeCmd.addListener("execute", this.__doCloseCmd, this);
       this.__closeCmd.setToolTipText("Close File");
       this.__closeCmd.setEnabled(false);
 
       this.__closeAllCmd = new qx.ui.command.Command("");
       this.__closeAllCmd.setLabel("Close All Files");
 //      this.__closeAllCmd.setIcon("icon/16/actions/document-open.png");
-      this.__closeAllCmd.addListener("execute", this.__debugCommand);
+      this.__closeAllCmd.addListener("execute", this.__doCloseAllCmd, this);
       this.__closeAllCmd.setToolTipText("Close All Files");
       this.__closeAllCmd.setEnabled(false);
 

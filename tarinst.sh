@@ -15,7 +15,7 @@ tail -n+\$PAYLOAD_LINE \$0 | tar -xvz
 #you can add custom installation command here
 
 cd kissideinst
-./setup
+./setup.sh
 cd ..
 rm -rf kissideinst
 exit 0

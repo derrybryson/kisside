@@ -96,6 +96,11 @@ qx.Class.define("kisside.PageEditor",
     canClose : function()
     {
       return this.__linkCount === 0;
+    },
+    
+    close : function()
+    {
+      this.fireEvent('close');
     }
   }
 });

@@ -16,6 +16,7 @@ rm $DATAFILE
 rm api/config.php
 cp -r . $WWWDIR
 popd > /dev/null
+cp LICENSE $INSTDIR
 
 if [ ! -f $WWWDIR/api/config.php ] ; then
   cp $WWWDIR/api/config.php.default $WWWDIR/api/config.php 
@@ -27,8 +28,6 @@ if [ ! -f $WWWDIR/$DATAFILE ] ; then
   echo "KISSIDE Administrator Account"
   read -e -p "Administrator Username: " adminuser
   read -e -s -p "Administrator Password: " adminpasswd
-  echo "Hashing password..."
-  hashedpw=`php build/data/hashpw.php '$adminpasswd'`
   echo "Adding admin user..."
   pushd $WWWDIR/api > /dev/null
   php adduser.php "$adminuser" "$adminpasswd"
