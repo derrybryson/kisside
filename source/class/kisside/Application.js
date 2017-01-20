@@ -1630,12 +1630,12 @@ qx.Class.define("kisside.Application",
           {
             converter : function(value, model, source, target)
             {
-              self.debug("open - converter");
+//              self.debug("open - converter");
               var isOpen = target.isOpen();
               if (isOpen && !value.getLoaded())
               {
                 value.setLoaded(true);
-                self.debug("value = " + JSON.stringify(value));
+//                self.debug("value = " + JSON.stringify(value));
 //                var path = value.getLabel() == value.getBasedir() ? "" : value.getLabel();
                 self.getFsRpc().listdir(value.getBasedir(), value.getPath(), false, function(result, exc)
                 {

@@ -69,6 +69,14 @@ function authVerify($authToken)
         $query = "delete from auths where auth_token=" . $db->quote($authToken);
         $result = $db->query($query);
       }
+      else
+      {
+        $expdate = time() + AUTH_EXPIRE_SECONDS;
+        $query = "update auths set expdate=" . $db->quote($expdate) . " where auth_token=" . $db->quote($authToken);
+        error_log("query = $query");
+        $result = $db->query($query);
+        error_log("error updating auths record");
+      }
     }
     $db->commit();
   }
