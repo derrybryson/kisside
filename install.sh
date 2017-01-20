@@ -18,6 +18,7 @@ rm $DATAFILE
 rm api/config.php
 cp -r . $WWWDIR
 popd > /dev/null
+cp LICENSE $INSTDIR
 
 if [ ! -f $WWWDIR/api/config.php ] ; then
   cp $WWWDIR/api/config.php.default $WWWDIR/api/config.php 
@@ -44,8 +45,10 @@ if [ ! -f $INSTDIR/$PASSWDFILE ] ; then
   htpasswd -c -b -B $INSTDIR/$PASSWDFILE "$authusername" "$authpassword"
 fi
 
-install -m 0644 apache2/kisside.conf /etc/apache2/conf-available
-ln -s -f /etc/apache2/conf-available/kisside.conf /etc/apache2/conf-enabled
+if [ ! -f /etc/apache2/conf-available/kisside.conf ] ; then
+  install -m 0644 apache2/kisside.conf /etc/apache2/conf-available
+  ln -s /etc/apache2/conf-available/kisside.conf /etc/apache2/conf-enabled
+fi
 
 echo 
 echo "Installation complete"
