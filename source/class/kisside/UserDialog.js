@@ -94,7 +94,7 @@ qx.Class.define("kisside.UserDialog",
 //    window.model = model;
     
     form.getValidationManager().setValidator(function(items) {
-        var valid = password.getValue() == password2.getValue();
+        var valid = password.getValue() == "" || password.getValue() == password2.getValue();
         if(!valid) 
         {
           var message = "Passwords must be equal.";

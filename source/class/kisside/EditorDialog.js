@@ -78,7 +78,7 @@ qx.Class.define("kisside.EditorDialog",
         return data + ""; 
       }}, {converter : function(data) { 
         // target --> model 
-        return parseInt(data); 
+        return data !== "" ? parseInt(data) : data; 
       }}); 
     controller.setModel(qx.data.marshal.Json.createModel(config, true));
 //    var model = controller.createModel();
@@ -91,7 +91,7 @@ qx.Class.define("kisside.EditorDialog",
         controller.updateModel();
         window.editor_options = controller.getModel();
         this.close();
-        alert("You are saving: " + qx.util.Serializer.toJson(controller.getModel()));
+//        alert("You are saving: " + qx.util.Serializer.toJson(controller.getModel()));
         if(callback)
         {
           if(context)

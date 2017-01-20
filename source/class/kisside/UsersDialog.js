@@ -124,7 +124,7 @@ qx.Class.define("kisside.UsersDialog",
       {
         var dialog = new kisside.UserDialog(this.__app, user, function(user) { 
             qx.event.Timer.once(this.__updateUserList, this, 1000); // this is not really a good way to do this
-            this.__app.__updateUser(user);
+            this.__app.updateUser(user);
           }, this);
         this.__app.getRoot().add(dialog, {left:20, top:20});
         dialog.center();
@@ -135,7 +135,7 @@ qx.Class.define("kisside.UsersDialog",
     {
       var dialog = new kisside.UserDialog(this.__app, null, function(user) { 
           qx.event.Timer.once(this.__updateUserList, this, 1000); // this is not really a good way to do this
-          this.__app.__updateUser(user);
+          this.__app.updateUser(user);
         }, this);
       this.__app.getRoot().add(dialog, {left:20, top:20});
       dialog.center();

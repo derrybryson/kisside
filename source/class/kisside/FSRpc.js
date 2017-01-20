@@ -79,9 +79,9 @@ qx.Class.define("kisside.FSRpc",
       this._call(callback, "rmdir", { "authtoken" : this._app.getAuthToken(), "basedir" : basedir, "path" : path }, context);
     },
     
-    rename : function(basedir, oldname, newname, callback, context)
+    rename : function(basedir, oldpath, newpath, callback, context)
     {
-      this._call(callback, "rename", { "authtoken" : this._app.getAuthToken(), "basedir" : basedir, "oldname" : oldname, "newname" : newname }, context);
+      this._call(callback, "rename", { "authtoken" : this._app.getAuthToken(), "basedir" : basedir, "oldpath" : oldpath, "newpath" : newpath }, context);
     },
     
     unlink : function(basedir, path, callback, context)

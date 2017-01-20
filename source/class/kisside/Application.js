@@ -51,8 +51,8 @@ qx.Class.define("kisside.Application",
   {
     __main : null,
     __menuBar : null,
-    __toolBar : null,
     __tabView : null,
+    __toolBar : null,
     __curPage : null,
     __fsPane : null,
     __fsTree : null,
@@ -67,6 +67,7 @@ qx.Class.define("kisside.Application",
      */
     main : function()
     {
+      window.onbeforeunload = function() { return "You may have unsaved data in open files, are you sure you want to leave?"; };
       window.app = this;
 
       // setup RPC
@@ -587,6 +588,57 @@ qx.Class.define("kisside.Application",
       }
     },
     
+    __onRename :function(item, newName, result, exc)
+    {
+      if(exc === null)
+      {
+        window.result = result;
+        var page = this.__getPageForPath(item.getBasedir(), item.getPath());
+        if(page)
+          page.setFilename(newName);
+        var x = this.__getItemParentForPath(item.getBasedir(), item.getPath());
+        this.debug("x = " + JSON.stringify(x));
+        if(x)
+          this.__refreshFSTreeItem(x.parent);
+      }
+      else
+      {
+        var mb = new kisside.MessageBox(this, "Error", "Unable to rename file/folder: " + exc, 
+                                         kisside.MessageBox.FLAG_ERROR | kisside.MessageBox.FLAG_OK);
+        this.getRoot().add(mb, {left:20, top:20});
+        mb.center();
+      }
+    },
+    
+    __onDoRenameCmd : function(item, newName)
+    {
+      var parts = item.getPath().split('/');
+      parts[parts.length - 1] = newName;
+      var path = parts.join('/');
+      this.getFsRpc().rename(item.getBasedir(), item.getPath(), path, function(result, exc) { this.__onRename(item, newName, result, exc); }, this);
+    },
+    
+    __doRenameCmd : function()
+    {
+      var selection = this.__fsTree.getSelection().toArray();
+      if(selection.length > 0)
+      {
+        var item = selection[0];
+        if(item.getStat().getMode() & kisside.FSRpc.S_IFREG)
+        {
+          var d = new kisside.PromptDialog("Rename File", "Enter new name for file:", item.getLabel(), 1024, 200, function(text) { this.__onDoRenameCmd(item, text); }, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
+        }
+        else if(item.getStat().getMode() & kisside.FSRpc.S_IFDIR)
+        {
+          var d = new kisside.PromptDialog("Rename Folder", "Enter new name for folder:", item.getLabel(), 1024, 200, function(text) { this.__onDoRenameCmd(item, text); }, this);
+          this.getRoot().add(d, {left:20, top:20});
+          d.center();
+        }
+      }
+    },
+    
     __onGotoCmd : function(line)
     {
       var page = this.__getSelectedPage();
@@ -895,6 +947,20 @@ qx.Class.define("kisside.Application",
       this.__tabView = new kisside.EditorTabView();
       this.__tabView.addListener("page-close", this.__onPageClose, this);
       this.__tabView.addListener("changeSelection", this.__onTabViewSelect, this);
+      this.__tabView.addListenerOnce("appear", function() {
+        this.debug("on tabView appear");
+        window.pane = this.__tabView.getChildControl("pane").getContentElement();
+        var e = this.__tabView.getChildControl("pane").getContentElement().getDomElement();
+        qx.bom.element.Style.set(e, "background-image", "url('resource/kisside/kisside_background.png')");
+        qx.bom.element.Style.set(e, "background-position", "center");
+        qx.bom.element.Style.set(e, "background-repeat", "no-repeat");
+      }, this);
+
+//      var bg = new qx.ui.decoration.Decorator();
+//      bg.setBackgroundImage("kisside/kisside_background.png");
+//      bg.setBackgroundRepeat("no-repeat");
+//      bg.setBackgroundPosition("center");
+//      this.__tabView.setDecorator(bg); 
 
       this.__tabView.setContentPadding(0, 0, 0, 0);
       editorPane.add(this.__tabView);
@@ -954,7 +1020,7 @@ qx.Class.define("kisside.Application",
     {
       this.debug("save settings: " + JSON.stringify(config));
       this.getUser().config.editor = config;
-      this.getUserRpc().update(this.getUser(), function(result, exc) { this.__onUpdateUser(this.getUser(), result, exc); }, this);
+      this.getUserRpc().update(this.getUser(), function(result, exc) { this.__onUpdateUser(this.getUser(), false, result, exc); }, this);
       this.__tabView.getChildren().forEach(function(page) { page.getEditor().setOptions(config); });
     },
     
@@ -980,7 +1046,7 @@ qx.Class.define("kisside.Application",
       this.getUserRpc().getAll(this.__onGetUsers, this);      
     },
     
-    __updateUser : function(user)
+    updateUser : function(user)
     {
       this.debug("user = " + JSON.stringify(user));
       if(user.userid)
@@ -1066,7 +1132,7 @@ qx.Class.define("kisside.Application",
       this.__saveAsCmd.setToolTipText("Save File As");
       this.__saveAsCmd.setEnabled(false);
 
-      this.__uploadCmd = new qx.ui.command.Command("Ctrl+U");
+      this.__uploadCmd = new qx.ui.command.Command("");
       this.__uploadCmd.setLabel("Upload File");
       this.__uploadCmd.setIcon("icon/16/actions/go-up.png");
       this.__uploadCmd.addListener("execute", this.__doUpload, this);
@@ -1090,11 +1156,11 @@ qx.Class.define("kisside.Application",
       this.__renameCmd = new qx.ui.command.Command("");
       this.__renameCmd.setLabel("Rename...");
 //      this.__renameCmd.setIcon("icon/16/actions/go-up.png");
-      this.__renameCmd.addListener("execute", this.__debugCommand);
+      this.__renameCmd.addListener("execute", this.__doRenameCmd, this);
       this.__renameCmd.setToolTipText("Rename...");
 
       this.__cloneCmd = new qx.ui.command.Command("");
-      this.__cloneCmd.setLabel("Clone");
+      this.__cloneCmd.setLabel("Clone...");
 //      this.__cloneCmd.setIcon("icon/16/actions/go-up.png");
       this.__cloneCmd.addListener("execute", this.__doCloneCmd, this);
       this.__cloneCmd.setToolTipText("Clone");
@@ -1175,7 +1241,7 @@ qx.Class.define("kisside.Application",
       this.__acctCmd.setLabel("Account...");
       this.__acctCmd.setIcon("icon/16/categories/system.png")
       this.__acctCmd.addListener("execute", function() { 
-        var dialog = new kisside.UserDialog(this, this.getUser(), this.__updateUser, this);
+        var dialog = new kisside.UserDialog(this, this.getUser(), this.updateUser, this);
         this.getRoot().add(dialog, {left:20, top:20});
         dialog.center();
       }, this);
@@ -1202,7 +1268,7 @@ qx.Class.define("kisside.Application",
       this.__refreshCmd.setLabel("Refresh");
       this.__refreshCmd.setIcon("icon/16/actions/view-refresh.png")
       this.__refreshCmd.addListener("execute", this.__refreshFSTreeSelected, this);
-      this.__refreshCmd.setToolTipText("Redo Edit");
+      this.__refreshCmd.setToolTipText("Refresh selected");
 
       this.__signoutCmd = new qx.ui.command.Command();
       this.__signoutCmd.setLabel("Sign Out");
@@ -1487,7 +1553,7 @@ qx.Class.define("kisside.Application",
     __onDblClickFSItem : function(e) 
     { 
       var item = e.getTarget(); 
-      this.debug(item.getModel().getPath() + '/' + item.getModel().getLabel()); 
+//      this.debug(item.getModel().getPath() + '/' + item.getModel().getLabel()); 
       this.__doOpenCmd();
     }, 
 

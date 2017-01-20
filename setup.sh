@@ -4,7 +4,7 @@ WWWDIR="$INSTDIR/www"
 DATAFILE="data/kiss.sqlite"
 SCHEMAFILE="data/schema.sql"
 PASSWDFILE="accesspw"
-UPLOADTMPDIR="/usr/lib/kisside/tmp"
+UPLOADTMPDIR="/var/lib/kisside/tmp"
 
 set -e
 
