@@ -119,6 +119,7 @@ qx.Class.define("kisside.Application",
     
     __applyUser : function(value)
     {
+      this.debug("value = " + JSON.stringify(value));
       if(value.admin == 1)
       {
         this.__usersCmd.setEnabled(true);

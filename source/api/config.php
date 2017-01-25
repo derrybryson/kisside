@@ -15,6 +15,7 @@ define("DEF_FILE_MODE", 0664);
 define("DEF_DIR_MODE", 0775);
 
 $DEF_GENERAL_OPTIONS = array(
+  "fsPaneWidth" => 300
 );
 
 $DEF_EDITOR_OPTIONS = array(

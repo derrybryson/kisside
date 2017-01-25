@@ -8,8 +8,10 @@ function _userEncodeConfig(&$user)
 
 function _userDecodeConfig(&$user)
 {
+//  error_log("user = " . print_r($user, true));
   if(array_key_exists("config", $user))
     $user["config"] = json_decode($user["config"]);
+//  error_log("user = " . print_r($user, true));
 }
 
 function userGet($username)
