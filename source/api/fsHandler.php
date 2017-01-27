@@ -66,11 +66,12 @@ class fsHandler extends kisshandler
     else
       return $this->newResp(null, $this->newError(KISSService::ERR_NOT_AUTHORIZED, "Not authorized"), $req["id"]);
   }
-
+  
   protected function scanDir($path, $recurse)
   {
     $dir = array();
     $entries = scandir($path);
+    natcasesort($entries);
     if($entries)
     {
       // do directories 
