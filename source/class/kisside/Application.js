@@ -36,7 +36,20 @@ qx.Class.define("kisside.Application",
 
   statics : 
   {
-    VERSION : "0.1"
+    VERSION : "0.1",
+    SAVE_SOUNDS : [
+      [ 'Beep Chirp', 'beep_chirp.mp3' ],
+      [ 'Close Lighter', 'close_lighter.mp3' ],
+      [ 'Door Bell', 'ding_dong_bell_door.mp3' ],
+      [ 'Keyboard Tap', 'keyboard_tap.mp3' ],
+      [ 'Latch Click', 'latch_click.mp3' ],
+      [ 'Shot Gun', 'one_blast_from_shot_gun.mp3' ],
+      [ 'Pull Grenade Pin', 'pull_grenade_pin.mp3' ],
+      [ 'Water Drop', 'single_water_drop.mp3' ],
+      [ 'Gong Hit', 'small_gong_hit.mp3' ],
+      [ 'Space Laser', 'space_laser_shot.mp3' ],
+      [ 'Desk Bell', 'timer_bell_or_desk_bell_ringing.mp3' ]
+    ]
   },
 
   properties :
@@ -58,6 +71,7 @@ qx.Class.define("kisside.Application",
     __fsTree : null,
     __fsClipboard : null,
     __uploadDialog : null,
+    __saveAudio : null,
 
     /**
      * This method contains the initial application code and gets called 
@@ -91,6 +105,8 @@ qx.Class.define("kisside.Application",
 
       this.__fsClipboard = [];
       
+      this.__setSaveSound(kisside.Application.SAVE_SOUNDS[0][1]);
+      
       this.__makeMain();
       console.log("calling __checkSignedIn");
       this.__checkSignedIn();
@@ -110,6 +126,31 @@ qx.Class.define("kisside.Application",
         mb.center();
       }
     }, 
+    
+    __setSaveSound : function(sound)
+    {
+      this.debug("setting save sound to " + sound);
+      if(sound !== '')
+      {
+        var uri = qx.util.ResourceManager.getInstance().toUri("kisside/sounds/" + sound);
+        if(!this.__saveAudio)
+          this.__saveAudio = new qx.bom.media.Audio(uri);
+        else
+          this.__saveAudio.setSource(uri);
+      }
+      else
+        this.__saveAudio = null;
+    },
+    
+    __playSaveSound : function()
+    {
+      if(this.__saveAudio)
+      {
+        this.__saveAudio.pause();
+        this.__saveAudio.setCurrentTime(0);
+        this.__saveAudio.play();
+      }
+    },
 
     __applyAuthToken : function(value)
     {
@@ -132,6 +173,12 @@ qx.Class.define("kisside.Application",
       if("fsPaneWidth" in config.general)
       {
         this.__fsPane.setWidth(config.general.fsPaneWidth);
+      }
+      if("general" in config && config.general)
+      {
+        this.__generalCmd.setEnabled(true);
+        if('saveSound' in config.general)
+          this.__setSaveSound(config.general.saveSound);
       }
       if("editor" in config && config.editor)
       {
@@ -405,6 +452,7 @@ qx.Class.define("kisside.Application",
           page.setFilename(newFilename);
         }
         page.setStat(result.stat);
+        this.__playSaveSound();
       }
       else
       {
@@ -1017,9 +1065,18 @@ qx.Class.define("kisside.Application",
       }
     }, 
     
+    __setGeneralOptions : function(config)
+    {
+      this.debug("save general settings: " + JSON.stringify(config));
+      this.getUser().config.general = config;
+      if(config.saveSound)
+        this.__setSaveSound(config.saveSound);
+      this.getUserRpc().update(this.getUser(), function(result, exc) { this.__onUpdateUser(this.getUser(), false, result, exc); }, this);
+    },
+    
     __setEditorOptions : function(config)
     {
-      this.debug("save settings: " + JSON.stringify(config));
+      this.debug("save editor settings: " + JSON.stringify(config));
       this.getUser().config.editor = config;
       this.getUserRpc().update(this.getUser(), function(result, exc) { this.__onUpdateUser(this.getUser(), false, result, exc); }, this);
       this.__tabView.getChildren().forEach(function(page) { page.getEditor().setOptions(config); });
@@ -1248,6 +1305,16 @@ qx.Class.define("kisside.Application",
       }, this);
       this.__acctCmd.setToolTipText("Account Settings");
 
+      this.__generalCmd = new qx.ui.command.Command("");
+      this.__generalCmd.setLabel("General...");
+      this.__generalCmd.setIcon("icon/16/categories/system.png")
+      this.__generalCmd.addListener("execute", function() { 
+        var dialog = new kisside.GeneralDialog(this.getUser().config.general, this.__setGeneralOptions, this);
+        this.getRoot().add(dialog, {left:20, top:20});
+        dialog.center();
+      }, this);
+      this.__generalCmd.setToolTipText("General Settings");
+
       this.__editorCmd = new qx.ui.command.Command("");
       this.__editorCmd.setLabel("Editor...");
       this.__editorCmd.setIcon("icon/16/apps/utilities-text-editor.png")
@@ -1256,13 +1323,13 @@ qx.Class.define("kisside.Application",
         this.getRoot().add(dialog, {left:20, top:20});
         dialog.center();
       }, this);
-      this.__editorCmd.setToolTipText("User Administration");
+      this.__editorCmd.setToolTipText("Editor Settings");
 
       this.__usersCmd = new qx.ui.command.Command("");
       this.__usersCmd.setLabel("Users...");
       this.__usersCmd.setIcon("icon/16/apps/preferences-users.png")
       this.__usersCmd.addListener("execute", this.__doUsersCmd, this);
-      this.__usersCmd.setToolTipText("Editor Settings");
+      this.__usersCmd.setToolTipText("User Administration");
       this.__usersCmd.setEnabled(false);
 
       this.__refreshCmd = new qx.ui.command.Command("Ctrl+R");
@@ -1431,10 +1498,12 @@ qx.Class.define("kisside.Application",
       var menu = new qx.ui.menu.Menu();
       
       var acctButton = new qx.ui.menu.Button("", "", this.__acctCmd);
+      var generalButton = new qx.ui.menu.Button("", "", this.__generalCmd);
       var editorButton = new qx.ui.menu.Button("", "", this.__editorCmd);
       var adminButton = new qx.ui.menu.Button("", "", this.__usersCmd);
 
       menu.add(acctButton);
+      menu.add(generalButton);
       menu.add(editorButton);
       menu.add(adminButton);
 

@@ -5,13 +5,17 @@
  * 
  * @lint ignoreDeprecated(alert)
  */
-qx.Class.define("kisside.EditorDialog",
+qx.Class.define("kisside.GeneralDialog",
 {
   extend: qx.ui.window.Window,
 
   construct : function(config, callback, context)
   {
-    this.base(arguments, "Editor Settings");
+    this.base(arguments, "General Settings");
+    
+    if(!('saveSound' in config))
+      config.saveSound = kisside.Application.SAVE_SOUNDS[0][1];
+      
     
     this.setLayout(new qx.ui.layout.Canvas());
     this.setModal(true);
@@ -27,62 +31,45 @@ qx.Class.define("kisside.EditorDialog",
     var form = new qx.ui.form.Form();
 //    form.addGroupHeader("User Credentials");
 
-    var tabSize = new qx.ui.form.TextField();
-    tabSize.setRequired(true);
-    tabSize.setMaxLength(2);
-    tabSize.setWidth(125);
-    tabSize.setLiveUpdate(true);
-    form.add(tabSize, "Tab Size", null, "tabSize");
+    var saveSound = new qx.ui.form.SelectBox();
+    saveSound.add(new qx.ui.form.ListItem("None", "", ""));
+    for(i = 0; i < kisside.Application.SAVE_SOUNDS.length; i++)
+      saveSound.add(new qx.ui.form.ListItem(kisside.Application.SAVE_SOUNDS[i][0], "", kisside.Application.SAVE_SOUNDS[i][1]));
+    var nosound = true;
+    saveSound.addListener("changeSelection", function(e)
+      {
+        if(nosound)
+        {
+          nosound = false;
+          return;
+        }
+        var selection = e.getData();
+        if(selection[0])
+        {
+          window.selection = selection[0];
+          var sound = selection[0].getModel();
+          if(sound !== '')
+          {
+            var uri = qx.util.ResourceManager.getInstance().toUri("kisside/sounds/" + sound);
+            var audio = new qx.bom.media.Audio(uri);
+            audio.addListener("ended", function() { audio.dispose(); }, this);
+            audio.play();
+          }
+        }
+      }, this);
+    form.add(saveSound, "Save Sound", null, "saveSound");
     
-    var softTabs = new qx.ui.form.CheckBox("Use Spaces for Tabs");
-//    softTabs.setLiveUpdate(true);
-    form.add(softTabs, "", null, "softTabs");
-
-    var fontSize = new qx.ui.form.SelectBox();
-    fontSize.add(new qx.ui.form.ListItem("6px", "", "6px"));
-    fontSize.add(new qx.ui.form.ListItem("8px", "", "8px"));
-    fontSize.add(new qx.ui.form.ListItem("10px", "", "10px"));
-    fontSize.add(new qx.ui.form.ListItem("12px", "", "12px"));
-    fontSize.add(new qx.ui.form.ListItem("14px", "", "14px"));
-    fontSize.add(new qx.ui.form.ListItem("16px", "", "16px"));
-    fontSize.add(new qx.ui.form.ListItem("18px", "", "18px"));
-    fontSize.add(new qx.ui.form.ListItem("20px", "", "20px"));
-    fontSize.add(new qx.ui.form.ListItem("22px", "", "22px"));
-    fontSize.add(new qx.ui.form.ListItem("24px", "", "24px"));
-//    fontSize.setLiveUpdate(true);
-    form.add(fontSize, "Font Size", null, "fontSize");
-                 
-    var theme = new qx.ui.form.SelectBox();
-    var i;
-    for(i = 0; i < kisside.Editor.supportedThemes.length; i++)
-    {
-      var ti = kisside.Editor.supportedThemes[i];
-      theme.add(new qx.ui.form.ListItem(ti[0] + " (" + ti[2] + ")", "", ti[1]));
-    }
-//    theme.setLiveUpdate(true);
-    form.add(theme, "Theme", null, "theme");
-    
-//    fontSize.setLiveUpdate(true);
-    form.add(fontSize, "Font Size", null, "fontSize");
-    // buttons
     var saveButton = new qx.ui.form.Button("Save", "icon/16/actions/dialog-apply.png");
 //    signInButton.setWidth(70);
     form.addButton(saveButton);
     var cancelButton = new qx.ui.form.Button("Cancel", "icon/16/actions/dialog-cancel.png");
 //    cancelButton.setWidth(70);
     form.addButton(cancelButton);
-
+    
     this.add(new qx.ui.form.renderer.Single(form), { edge: 20 });
 
     // binding /////////////////////////
     var controller = new qx.data.controller.Form(null, form);
-    controller.addBindingOptions("tabSize", {converter : function(data) { 
-        // model --> target 
-        return data + ""; 
-      }}, {converter : function(data) { 
-        // target --> model 
-        return data !== "" ? parseInt(data) : data; 
-      }}); 
     controller.setModel(qx.data.marshal.Json.createModel(config, true));
 //    var model = controller.createModel();
 //    window.model = model;
@@ -92,7 +79,7 @@ qx.Class.define("kisside.EditorDialog",
       if (form.validate()) {
 //        this.debug("password = " + password.getValue());
         controller.updateModel();
-        window.editor_options = controller.getModel();
+        window.general_options = controller.getModel();
         this.close();
 //        alert("You are saving: " + qx.util.Serializer.toJson(controller.getModel()));
         if(callback)
@@ -106,7 +93,7 @@ qx.Class.define("kisside.EditorDialog",
       }
     }, this);
     cancelButton.addListener("execute", function() { this.close(); }, this);
-    this.addListener("appear",function() { tabSize.focus(); }, this);
+    this.addListener("appear",function() { saveSound.focus(); }, this);
 
     var self = this;
     this.addListener("keypress", function(e) { 
@@ -131,6 +118,7 @@ qx.Class.define("kisside.EditorDialog",
 
   members :
   {
-    __app : null
+    __app : null,
+    __audio : null
   }
 });
