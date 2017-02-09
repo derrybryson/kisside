@@ -62,3 +62,16 @@ The goal is to eventually provide Debian and Redhat packages with required depen
 * qooxdoo SDK 5.0.1 (currently requires patched version available [here](qooxdoo-5.0.1-sdk.tgz), although it might work with master branch from github [here](https://github.com/qooxdoo/qooxdoo))
 
 The qooxdoo SDK must be installed one directory below KISS IDE in the folder qooxdoo-5.0.1-sdk or you must modify the generate.py script with the folder where the SDK can be found.
+
+# Configuration
+
+The configuration is stored in the PHP file /usr/share/kisside/www/api/config.php.
+
+The folders available in KISS IDE are controlled by the $BASE_DIRS array.  Each entry defines one folder and entries are separated by commas using standard PHP syntax for arrays.  By default, 
+$BASE_DIRS has only one entry:
+
+"www-html" => "/var/www/html"
+
+that specifies a folder named "www-html" that is located at "/var/www/html" in the server filesystem.  This allows access to all folders under /var/www/html which is the standard html folder for Apache.  
+If you modify this array, you will also need to modify the PHP open_basedir setting in /etc/apache2/conf-available/kisside.conf file to include the specified directory or directories.
+
