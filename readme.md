@@ -29,9 +29,12 @@ None yet.
 
 # Road Map
 
+*In no particular order.*
+
 * Implement drag-and-drop in the filesystem tree
 * Implement copy/paste in the filesystem tree
 * Implement file execution on server
+* Add more customization for the ACE text editor
 
 # Installation Requirements
 
