@@ -27,7 +27,10 @@ KISS IDE source code is open source and licensed under the GPL Version 3.  Qooxd
 
 # Screen Shots
 
+## Basic IDE
 ![KISS IDE1](screenshots/kiss1.png "KISS IDE")
+
+## Editing a File
 ![KISS IDE1](screenshots/kiss2.png "KISS IDE")
 
 # Change Log
