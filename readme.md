@@ -14,7 +14,7 @@ or develop custom PHP, Python (maybe Django), Ruby (Rails), Node.js, etc. websit
 * Tree style filesystem access
 * Supports tab based interface to allow editing multiple files in multiple tabs
 * Simple user account system for multiple users
-* Two levels of authentication: HTTP basic authentication at the web server level and user accounts at the application level (HTTPS is recommended)
+* Two levels of authentication: HTTP basic authentication at the web server level and user accounts at the application level (HTTPS is highly recommended)
 * Safe write to "temp file before overwrite" file save operation 
 * Confirmation to overwrite file with newer modification date/time
 * Configurable text editor theme (both dark and light themes)
@@ -31,8 +31,13 @@ phpmyadmin.
 
 # Installation
 
-Currently
+Currently installation is accomplished by a self-extracting shell script ([kissideinst.sh](kissideinst.sh)) that will install into /usr/share/kisside and
+setup the Apache config file in /etc/apache2/config-available and /etc/apache2/config-enabled and prompt for the Basic Authentication username/password and 
+for the initial admin username/password.  Note that the installation script can be run multiple times and will only update on subsequent runs.  This installation
+has only been tested on Ubuntu 14.04 with required packages installed.
+
+The goal is to eventually provide Debian and Redhat packages with required dependencies (and hopefully get the packages into official repositories).
 
 # Build Requirements
 
-* Qooxdoo SDK 5.0.1 (currently requires patched version available [here], might work with trunk from github)
+* Qooxdoo SDK 5.0.1 (currently requires patched version available [here](qooxdoo-5.0.1-sdk.tgz), might work with trunk from github)
