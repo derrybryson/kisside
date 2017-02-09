@@ -1,15 +1,19 @@
 ![KISS IDE](source/resource/kisside/kisside_background.png "KISS IDE Logo")
 
-# What is it?
+# About
 
 KISS IDE is a simple web based "Integrated Development Environment".  "IDE" is in quotes because initially, at least, it is mostly a simple
 filesystem tree with a text editor (although, a pretty good editor named ACE from Cloud9).  More things are planned for the future, but it is 
 very usable as is to edit text files on the server on which it is installed.  This makes it very convienent to create/edit Wordpress themes and plugins
 or develop custom PHP, Python (maybe Django), Ruby (Rails), Node.js, etc. websites.
 
+# License
+
+KISS IDE source code is open source and licensed under the GPL Version 3.  Qooxdoo and ACE have their own licenses which are compatible.
+
 # Features
 
-* SPA (Single Page App) with familiar GUI style application interface (utilizing the [QooxDoo](http://qooxdoo.org) Javascript framework)
+* SPA (Single Page App) with familiar GUI style application interface (utilizing the [qooxdoo](http://qooxdoo.org) Javascript framework)
 * Powerful text editor ([ACE](https://ace.c9.io) from Cloud9) with syntax highlighting and error detection for many languages and file types
 * Tree style filesystem access
 * Supports tab based interface to allow editing multiple files in multiple tabs
@@ -18,6 +22,16 @@ or develop custom PHP, Python (maybe Django), Ruby (Rails), Node.js, etc. websit
 * Safe write to "temp file before overwrite" file save operation 
 * Confirmation to overwrite file with newer modification date/time
 * Configurable text editor theme (both dark and light themes)
+
+# Change Log
+
+None yet.
+
+# Road Map
+
+* Implement drag-and-drop in the filesystem tree
+* Implement copy/paste in the filesystem tree
+* Implement file execution on server
 
 # Installation Requirements
 
@@ -40,4 +54,6 @@ The goal is to eventually provide Debian and Redhat packages with required depen
 
 # Build Requirements
 
-* Qooxdoo SDK 5.0.1 (currently requires patched version available [here](qooxdoo-5.0.1-sdk.tgz), might work with trunk from github)
+* qooxdoo SDK 5.0.1 (currently requires patched version available [here](qooxdoo-5.0.1-sdk.tgz), although it might work with master branch from github [here](https://github.com/qooxdoo/qooxdoo))
+
+The qooxdoo SDK must be installed one directory below KISS IDE in the folder qooxdoo-5.0.1-sdk or you must modify the generate.py script with the folder where the SDK can be found.
