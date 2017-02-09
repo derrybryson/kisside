@@ -7,6 +7,8 @@ filesystem tree with a text editor (although, a pretty good editor named ACE fro
 very usable as is to edit text files on the server on which it is installed.  This makes it very convienent to create/edit Wordpress themes and plugins
 or develop custom PHP, Python (maybe Django), Ruby (Rails), Node.js, etc. websites.
 
+Current Version: 0.1
+
 # License
 
 KISS IDE source code is open source and licensed under the GPL Version 3.  Qooxdoo and ACE have their own licenses which are compatible.
@@ -29,7 +31,7 @@ None yet.
 
 # Road Map
 
-*In no particular order.*
+*In no particular order:*
 
 * Implement drag-and-drop in the filesystem tree
 * Implement copy/paste in the filesystem tree
