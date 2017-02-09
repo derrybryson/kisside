@@ -9,12 +9,12 @@ or develop custom PHP, Python (maybe Django), Ruby (Rails), Node.js, etc. websit
 
 # Features
 
-* SPA (Single Page App) with familiar GUI style application interface (utilizing the QooxDoo Javascript framework)
+* SPA (Single Page App) with familiar GUI style application interface (utilizing the [QooxDoo](http://qooxdoo.org) Javascript framework)
 * Powerful text editor ([ACE](https://ace.c9.io) from Cloud9) with syntax highlighting and error detection for many languages and file types
 * Tree style filesystem access
 * Supports tab based interface to allow editing multiple files in multiple tabs
 * Simple user account system for multiple users
-* Two levels of authentication: HTTP basic authentication at the web server level and user accounts at the application level
+* Two levels of authentication: HTTP basic authentication at the web server level and user accounts at the application level (HTTPS is recommended)
 * Safe write to "temp file before overwrite" file save operation 
 * Confirmation to overwrite file with newer modification date/time
 * Configurable text editor theme (both dark and light themes)
@@ -26,7 +26,7 @@ or develop custom PHP, Python (maybe Django), Ruby (Rails), Node.js, etc. websit
 * SQLITE3
 * PHP SQLITE module
 
-Although the current installation is setup for Apache, it should be straight forward to set it up with Nginx.  It is designed to be an alias like
+Although the current installation is setup for Apache, it should be straight forward to set it up with Nginx.  It is designed to be a simple alias like
 phpmyadmin.
 
 # Installation
@@ -35,4 +35,4 @@ Currently
 
 # Build Requirements
 
-* Qooxdoo SDK 5.0.1
+* Qooxdoo SDK 5.0.1 (currently requires patched version available [here], might work with trunk from github)
