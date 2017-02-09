@@ -25,6 +25,11 @@ KISS IDE source code is open source and licensed under the GPL Version 3.  Qooxd
 * Confirmation to overwrite file with newer modification date/time
 * Configurable text editor theme (both dark and light themes)
 
+# Screen Shots
+
+<a href="screenshots/kiss1.png"><img src="screenshots/kiss1.png" align="left" width="640" ></a>
+<a href="screenshots/kiss2.png"><img src="screenshots/kiss2.png" align="left" width="640" ></a>
+
 # Change Log
 
 None yet.
@@ -73,5 +78,7 @@ $BASE_DIRS has only one entry:
 "www-html" => "/var/www/html"
 
 that specifies a folder named "www-html" that is located at "/var/www/html" in the server filesystem.  This allows access to all folders under /var/www/html which is the standard html folder for Apache.  
-If you modify this array, you will also need to modify the PHP open_basedir setting in /etc/apache2/conf-available/kisside.conf file to include the specified directory or directories.
+
+If you modify this array, you will also need to modify the PHP open_basedir setting in /etc/apache2/conf-available/kisside.conf file to include the specified directory or directories or you will get errors
+trying to access the directory.
 
