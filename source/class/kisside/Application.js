@@ -1297,7 +1297,7 @@ qx.Class.define("kisside.Application",
       
       this.__acctCmd = new qx.ui.command.Command("");
       this.__acctCmd.setLabel("Account...");
-      this.__acctCmd.setIcon("icon/16/categories/system.png")
+      this.__acctCmd.setIcon("icon/16/apps/preferences-security.png")
       this.__acctCmd.addListener("execute", function() { 
         var dialog = new kisside.UserDialog(this, this.getUser(), this.updateUser, this);
         this.getRoot().add(dialog, {left:20, top:20});
